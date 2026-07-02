@@ -10,7 +10,7 @@
         :root { 
             --rosa-topo: #ff69b4; --rosa-fundo: #fff0f5; --marrom: #5d4037; 
             --verde: #2ecc71; --laranja: #FF9800; --vermelho: #e74c3c; --azul: #3498db; --cinza: #95a5a6;
-            --roxo: #9b59b6;
+            --roxo: #9b59b6; --azul-escuro: #2c3e50;
         }
         body { font-family: 'Montserrat', sans-serif; background-color: var(--rosa-fundo); color: var(--marrom); margin: 0; padding: 10px; }
         header { text-align: center; padding: 5px; }
@@ -35,12 +35,14 @@
         .card-pedido.is-desistencia { border-left-color: var(--cinza); }
         .card-pedido.is-finalizado { border-left-color: var(--verde); opacity: 0.9; }
         .card-pedido.is-rascunho { border-left-color: var(--roxo); }
+        .card-pedido.is-apagar { border-left-color: var(--azul-escuro); }
         
         .badge { position: absolute; top: 15px; right: 15px; padding: 4px 8px; border-radius: 6px; font-size: 0.6rem; font-weight: 900; color: white; text-transform: uppercase; }
         .bg-reserva { background: var(--laranja); }
         .bg-pronta { background: var(--verde); }
         .bg-cancel { background: var(--cinza); }
         .bg-rascunho { background: var(--roxo); }
+        .bg-apagar { background: var(--azul-escuro); }
 
         .itens-box { background: #fffafb; border: 1px solid #ffebf2; border-radius: 10px; padding: 10px; font-size: 0.85rem; margin: 10px 0; white-space: pre-wrap; }
         
@@ -73,6 +75,7 @@
 <div class="tabs">
     <button class="tab-btn active" id="tab-novos" onclick="mudarAba('novos', this)">Novos 🍰</button>
     <button class="tab-btn" id="tab-reservas" onclick="mudarAba('reservas', this)">Reservas 🕒</button>
+    <button class="tab-btn" id="tab-apagar" onclick="mudarAba('apagar', this)">A Receber 💸</button>
     <button class="tab-btn" id="tab-abandonados" onclick="mudarAba('abandonados', this)">Abandonados 🛒</button>
     <button class="tab-btn" id="tab-concluidos" onclick="mudarAba('concluidos', this)">Vendas ✅</button>
     <button class="tab-btn" id="tab-desistencias" onclick="mudarAba('desistencias', this)">Desistências ❌</button>
@@ -81,6 +84,7 @@
 
 <div id="aba-novos" class="section active"><div id="lista-novos"></div></div>
 <div id="aba-reservas" class="section"><div id="lista-reservas"></div></div>
+<div id="aba-apagar" class="section"><div id="lista-apagar"></div></div>
 <div id="aba-abandonados" class="section"><div id="lista-abandonados"></div></div>
 <div id="aba-concluidos" class="section"><div id="lista-concluidos"></div></div>
 <div id="aba-desistencias" class="section"><div id="lista-desistencias"></div></div>
@@ -111,6 +115,8 @@
             await _supa.from('pedidos').update({ status: 'Novo' }).eq('id', id);
         } else if (target.classList.contains('btn-mini-restaurar-res')) {
             await _supa.from('pedidos').update({ status: 'Reserva' }).eq('id', id);
+        } else if (target.classList.contains('btn-mini-apagar-status')) {
+            await _supa.from('pedidos').update({ status: 'A Pagar' }).eq('id', id);
         } else if (target.classList.contains('btn-mini-apagar')) {
             if (confirm("Tem certeza que deseja excluir permanentemente este pedido?")) {
                 await _supa.from('pedidos').delete().eq('id', id);
@@ -144,13 +150,13 @@
     }
 
     function renderizarPedidos(lista) {
-        let html = { novos: "", reservas: "", abandonados: "", concluidos: "", desistencias: "" };
+        let html = { novos: "", reservas: "", apagar: "", abandonados: "", concluidos: "", desistencias: "" };
         
         lista.forEach(p => {
             const dataPedido = new Date(p.created_at).toLocaleString('pt-BR');
             const status = (p.status || "").trim();
             
-            const card = gerarCard(p, p.itens, (status === 'Reserva'), dataPedido, (status === 'Desistencia'), (status === 'Rascunho'));
+            const card = gerarCard(p, p.itens, (status === 'Reserva'), dataPedido, (status === 'Desistencia'), (status === 'Rascunho'), (status === 'A Pagar'));
             
             if (status === 'Finalizado') {
                 html.concluidos += card;
@@ -162,17 +168,20 @@
                 html.reservas += card;
             } else if (status === 'Novo') {
                 html.novos += card;
+            } else if (status === 'A Pagar') {
+                html.apagar += card;
             }
         });
 
         document.getElementById('lista-novos').innerHTML = html.novos || "<p style='text-align:center; padding:20px; opacity:0.5;'>Nenhum novo.</p>";
         document.getElementById('lista-reservas').innerHTML = html.reservas || "<p style='text-align:center; padding:20px; opacity:0.5;'>Nenhuma reserva.</p>";
+        document.getElementById('lista-apagar').innerHTML = html.apagar || "<p style='text-align:center; padding:20px; opacity:0.5;'>Nenhum pedido a receber.</p>";
         document.getElementById('lista-abandonados').innerHTML = html.abandonados || "<p style='text-align:center; padding:20px; opacity:0.5;'>Nenhum carrinho abandonado.</p>";
         document.getElementById('lista-concluidos').innerHTML = html.concluidos || "<p style='text-align:center; padding:20px; opacity:0.5;'>Histórico vazio.</p>";
         document.getElementById('lista-desistencias').innerHTML = html.desistencias || "<p style='text-align:center; padding:20px; opacity:0.5;'>Nenhuma desistência.</p>";
     }
 
-    function gerarCard(p, itens, ehReserva, dataHora, ehDesistencia, ehRascunho) {
+    function gerarCard(p, itens, ehReserva, dataHora, ehDesistencia, ehRascunho, ehApagar) {
         const linkZap = `https://wa.me/55${p.telefone?.replace(/\D/g,'')}`;
         const statusReal = (p.status || "Novo").trim();
         
@@ -183,19 +192,23 @@
             botoes = `<div class="btn-mini-group"><button class="btn-mini btn-mini-restaurar" data-id="${p.id}">Restaurar</button><button class="btn-mini btn-mini-apagar" data-id="${p.id}">Apagar</button></div>`;
         } else if (statusReal === 'Finalizado') {
             botoes = `<div class="btn-mini-group"><button class="btn-mini btn-mini-restaurar" data-id="${p.id}">Restaurar</button></div>`;
+        } else if (statusReal === 'A Pagar') {
+            botoes = `<div class="btn-mini-group"><button class="btn-mini btn-mini-concluir" data-id="${p.id}">Dar Baixa (Recebido)</button><button class="btn-mini btn-mini-desistir" data-id="${p.id}">Desistência</button></div>`;
         } else {
-            botoes = `<div class="btn-mini-group"><button class="btn-mini btn-mini-concluir" data-id="${p.id}">Venda Concluída</button><button class="btn-mini btn-mini-desistir" data-id="${p.id}">Desistência</button></div>`;
+            botoes = `<div class="btn-mini-group"><button class="btn-mini btn-mini-concluir" data-id="${p.id}">Venda Concluída</button><button class="btn-mini btn-mini-restaurar btn-mini-apagar-status" data-id="${p.id}">A Receber</button><button class="btn-mini btn-mini-desistir" data-id="${p.id}">Desistência</button></div>`;
         }
 
         const classeFinalizado = statusReal === 'Finalizado' ? 'is-finalizado' : '';
         const classeRascunho = ehRascunho ? 'is-rascunho' : '';
+        const classeApagar = ehApagar ? 'is-apagar' : '';
 
         let badgeTexto = '✅ OK', badgeClasse = 'bg-pronta';
         if (ehDesistencia) { badgeTexto = 'OFF'; badgeClasse = 'bg-cancel'; }
         else if (ehReserva) { badgeTexto = '🕒 RES'; badgeClasse = 'bg-reserva'; }
         else if (ehRascunho) { badgeTexto = '🛒 CAR'; badgeClasse = 'bg-rascunho'; }
+        else if (ehApagar) { badgeTexto = '💸 RECEBER'; badgeClasse = 'bg-apagar'; }
 
-        return `<div class="card-pedido ${ehReserva ? 'is-reserva' : ''} ${ehDesistencia ? 'is-desistencia' : ''} ${classeFinalizado} ${classeRascunho}">
+        return `<div class="card-pedido ${ehReserva ? 'is-reserva' : ''} ${ehDesistencia ? 'is-desistencia' : ''} ${classeFinalizado} ${classeRascunho} ${classeApagar}">
                 <span class="badge ${badgeClasse}">${badgeTexto}</span>
                 <small style="display:block; color:#aaa; font-size: 0.6rem;">${dataHora}</small>
                 <strong style="font-size:0.9rem;">${p.nome}</strong>
@@ -230,7 +243,7 @@
                 dados_proximidade: l.querySelector('.data').value 
             }).eq('id', l.dataset.id);
         }
-        alert("Estoque atualizado!"); 
+        alert("Estoque updated!"); 
         carregarTudo();
     };
 
