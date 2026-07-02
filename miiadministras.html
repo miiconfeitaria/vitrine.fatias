@@ -10,8 +10,7 @@
         :root { 
             --rosa-topo: #ff69b4; --rosa-fundo: #fff0f5; --marrom: #5d4037; 
             --verde: #2ecc71; --laranja: #FF9800; --vermelho: #e74c3c; --azul: #3498db; --cinza: #95a5a6;
-            --roxo: #9b59b6; --azul-escuro: #2c3e50;
-            --vermelho-claro: #fdf2f2; --verde-claro: #f0fdf4;
+            --roxo: #9b59b6;
         }
         body { font-family: 'Montserrat', sans-serif; background-color: var(--rosa-fundo); color: var(--marrom); margin: 0; padding: 10px; }
         header { text-align: center; padding: 5px; }
@@ -36,15 +35,12 @@
         .card-pedido.is-desistencia { border-left-color: var(--cinza); }
         .card-pedido.is-finalizado { border-left-color: var(--verde); opacity: 0.9; }
         .card-pedido.is-rascunho { border-left-color: var(--roxo); }
-        .card-pedido.is-apagar { border-left-color: var(--vermelho); background-color: var(--vermelho-claro); }
-        .card-pedido.is-pago-pendurado { border-left-color: var(--verde); background-color: var(--verde-claro); }
         
         .badge { position: absolute; top: 15px; right: 15px; padding: 4px 8px; border-radius: 6px; font-size: 0.6rem; font-weight: 900; color: white; text-transform: uppercase; }
         .bg-reserva { background: var(--laranja); }
         .bg-pronta { background: var(--verde); }
         .bg-cancel { background: var(--cinza); }
         .bg-rascunho { background: var(--roxo); }
-        .bg-apagar { background: var(--vermelho); }
 
         .itens-box { background: #fffafb; border: 1px solid #ffebf2; border-radius: 10px; padding: 10px; font-size: 0.85rem; margin: 10px 0; white-space: pre-wrap; }
         
@@ -56,15 +52,11 @@
         .btn-mini-restaurar { background: var(--azul); }
         .btn-mini-apagar { background: var(--vermelho); }
         .btn-mini-restaurar-res { background: var(--laranja); }
-        .btn-mini-apagar-status { background: var(--azul); }
         
         .btn-zap-small { text-decoration: none; background: #25d366; color: white; padding: 5px 12px; border-radius: 4px; font-size: 0.65rem; font-weight: bold; text-transform: uppercase; }
 
         table { width: 100%; border-collapse: collapse; background: white; border-radius: 10px; overflow: hidden; }
         td, th { padding: 12px 10px; border-top: 1px solid #eee; font-size: 0.8rem; text-align: left; }
-
-        .resumo-receber { background: white; padding: 12px; border-radius: 12px; font-size: 0.85rem; font-weight: bold; margin-bottom: 15px; border: 1px dashed var(--rosa-topo); text-align: center; }
-        .divisoria-aba { font-size: 0.75rem; text-transform: uppercase; font-weight: bold; color: #888; margin: 20px 0 10px 0; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
     </style>
 </head>
 <body>
@@ -81,7 +73,6 @@
 <div class="tabs">
     <button class="tab-btn active" id="tab-novos" onclick="mudarAba('novos', this)">Novos 🍰</button>
     <button class="tab-btn" id="tab-reservas" onclick="mudarAba('reservas', this)">Reservas 🕒</button>
-    <button class="tab-btn" id="tab-apagar" onclick="mudarAba('apagar', this)">A Receber 💸</button>
     <button class="tab-btn" id="tab-abandonados" onclick="mudarAba('abandonados', this)">Abandonados 🛒</button>
     <button class="tab-btn" id="tab-concluidos" onclick="mudarAba('concluidos', this)">Vendas ✅</button>
     <button class="tab-btn" id="tab-desistencias" onclick="mudarAba('desistencias', this)">Desistências ❌</button>
@@ -90,15 +81,6 @@
 
 <div id="aba-novos" class="section active"><div id="lista-novos"></div></div>
 <div id="aba-reservas" class="section"><div id="lista-reservas"></div></div>
-
-<div id="aba-apagar" class="section">
-    <div class="resumo-receber" id="resumo-valores-receber">Aguardando Receber: R$ 0,00</div>
-    <div class="divisoria-aba">⚠️ Pendentes de Pagamento</div>
-    <div id="lista-apagar-pendentes"></div>
-    <div class="divisoria-aba">✅ Recebidos (Histórico)</div>
-    <div id="lista-apagar-recebidos"></div>
-</div>
-
 <div id="aba-abandonados" class="section"><div id="lista-abandonados"></div></div>
 <div id="aba-concluidos" class="section"><div id="lista-concluidos"></div></div>
 <div id="aba-desistencias" class="section"><div id="lista-desistencias"></div></div>
@@ -115,16 +97,6 @@
 <script>
     const _supa = supabase.createClient('https://byowrfsxtnqoumakbina.supabase.co', 'sb_publishable_BDZCNE4WgBWiFThCvCtdNQ_WYULTwBx');
     let editandoEstoque = false;
-
-    // Função isolada e direta para atualizar o status no Supabase sem depender das classes de cliques
-    async function atualizarStatusPedido(id, novoStatus) {
-        try {
-            await _supa.from('pedidos').update({ status: novoStatus }).eq('id', id);
-            await carregarTudo();
-        } catch (error) {
-            console.error("Erro ao atualizar o pedido:", error);
-        }
-    }
 
     document.addEventListener('click', async function(e) {
         const target = e.target;
@@ -172,14 +144,13 @@
     }
 
     function renderizarPedidos(lista) {
-        let html = { novos: "", reservas: "", apagarPendentes: "", apagarRecebidos: "", abandonados: "", concluidos: "", desistencias: "" };
-        let totalAguardando = 0;
+        let html = { novos: "", reservas: "", abandonados: "", concluidos: "", desistencias: "" };
         
         lista.forEach(p => {
             const dataPedido = new Date(p.created_at).toLocaleString('pt-BR');
             const status = (p.status || "").trim();
             
-            const card = gerarCard(p, p.itens, (status === 'Reserva'), dataPedido, (status === 'Desistencia'), (status === 'Rascunho'), (status === 'A Pagar'), (status === 'Pago Pendurado'));
+            const card = gerarCard(p, p.itens, (status === 'Reserva'), dataPedido, (status === 'Desistencia'), (status === 'Rascunho'));
             
             if (status === 'Finalizado') {
                 html.concluidos += card;
@@ -191,99 +162,11 @@
                 html.reservas += card;
             } else if (status === 'Novo') {
                 html.novos += card;
-            } else if (status === 'A Pagar') {
-                html.apagarPendentes += card;
-                totalAguardando += Number(p.valor_total || 0);
-            } else if (status === 'Pago Pendurado') {
-                html.apagarRecebidos += card;
             }
         });
 
-        document.getElementById('resumo-valores-receber').innerText = `Aguardando Receber: R$ ${totalAguardando.toFixed(2)}`;
-
         document.getElementById('lista-novos').innerHTML = html.novos || "<p style='text-align:center; padding:20px; opacity:0.5;'>Nenhum novo.</p>";
         document.getElementById('lista-reservas').innerHTML = html.reservas || "<p style='text-align:center; padding:20px; opacity:0.5;'>Nenhuma reserva.</p>";
-        
-        document.getElementById('lista-apagar-pendentes').innerHTML = html.apagarPendentes || "<p style='text-align:center; padding:20px; opacity:0.5;'>Nenhum valor pendente.</p>";
-        document.getElementById('lista-apagar-recebidos').innerHTML = html.apagarRecebidos || "<p style='text-align:center; padding:20px; opacity:0.5;'>Nenhum histórico recente.</p>";
-        
         document.getElementById('lista-abandonados').innerHTML = html.abandonados || "<p style='text-align:center; padding:20px; opacity:0.5;'>Nenhum carrinho abandonado.</p>";
         document.getElementById('lista-concluidos').innerHTML = html.concluidos || "<p style='text-align:center; padding:20px; opacity:0.5;'>Histórico vazio.</p>";
-        document.getElementById('lista-desistencias').innerHTML = html.desistencias || "<p style='text-align:center; padding:20px; opacity:0.5;'>Nenhuma desistência.</p>";
-    }
-
-    function gerarCard(p, itens, ehReserva, dataHora, ehDesistencia, ehRascunho, ehApagar, ehPagoPendurado) {
-        const linkZap = `https://wa.me/55${p.telefone?.replace(/\D/g,'')}`;
-        const statusReal = (p.status || "Novo").trim();
-        
-        let botoes = '';
-        if (ehRascunho) {
-            botoes = `<div class="btn-mini-group"><button class="btn-mini btn-mini-restaurar" data-id="${p.id}">Mudar para Novo</button><button class="btn-mini btn-mini-restaurar-res" data-id="${p.id}">Mudar para Reserva</button><button class="btn-mini btn-mini-apagar" data-id="${p.id}">Apagar</button></div>`;
-        } else if (statusReal === 'Desistencia') {
-            botoes = `<div class="btn-mini-group"><button class="btn-mini btn-mini-restaurar" data-id="${p.id}">Restaurar</button><button class="btn-mini btn-mini-apagar" data-id="${p.id}">Apagar</button></div>`;
-        } else if (statusReal === 'Finalizado') {
-            botoes = `<div class="btn-mini-group"><button class="btn-mini btn-mini-restaurar" data-id="${p.id}">Restaurar</button></div>`;
-        } else if (statusReal === 'A Pagar') {
-            botoes = `<div class="btn-mini-group"><button class="btn-mini btn-mini-concluir" onclick="atualizarStatusPedido('${p.id}', 'Pago Pendurado')">Marcar como Pago</button><button class="btn-mini btn-mini-desistir" data-id="${p.id}">Desistência</button></div>`;
-        } else if (statusReal === 'Pago Pendurado') {
-            botoes = `<div class="btn-mini-group"><button class="btn-mini btn-mini-concluir" onclick="atualizarStatusPedido('${p.id}', 'Finalizado')">Mover para Vendas ✅</button></div>`;
-        } else {
-            botoes = `<div class="btn-mini-group"><button class="btn-mini btn-mini-concluir" data-id="${p.id}">Venda Concluída</button><button class="btn-mini btn-mini-apagar-status" onclick="atualizarStatusPedido('${p.id}', 'A Pagar')">A Receber</button><button class="btn-mini btn-mini-desistir" data-id="${p.id}">Desistência</button></div>`;
-        }
-
-        const classeFinalizado = statusReal === 'Finalizado' ? 'is-finalizado' : '';
-        const classeRascunho = ehRascunho ? 'is-rascunho' : '';
-        const classeApagar = ehApagar ? 'is-apagar' : '';
-        const classePagoPendurado = ehPagoPendurado ? 'is-pago-pendurado' : '';
-
-        let badgeTexto = '✅ OK', badgeClasse = 'bg-pronta';
-        if (ehDesistencia) { badgeTexto = 'OFF'; badgeClasse = 'bg-cancel'; }
-        else if (ehReserva) { badgeTexto = '🕒 RES'; badgeClasse = 'bg-reserva'; }
-        else if (ehRascunho) { badgeTexto = '🛒 CAR'; badgeClasse = 'bg-rascunho'; }
-        else if (ehApagar) { badgeTexto = '🛑 DEVENDO'; badgeClasse = 'bg-apagar'; }
-        else if (ehPagoPendurado) { badgeTexto = '💰 PAGO'; badgeClasse = 'bg-pronta'; }
-
-        return `<div class="card-pedido ${ehReserva ? 'is-reserva' : ''} ${ehDesistencia ? 'is-desistencia' : ''} ${classeFinalizado} ${classeRascunho} ${classeApagar} ${classePagoPendurado}">
-                <span class="badge ${badgeClasse}">${badgeTexto}</span>
-                <small style="display:block; color:#aaa; font-size: 0.6rem;">${dataHora}</small>
-                <strong style="font-size:0.9rem;">${p.nome}</strong>
-                <div style="font-size:0.8rem; margin:5px 0; display: flex; align-items: center; flex-wrap: wrap; gap: 5px;">
-                    📱 ${p.telefone} <a href="${linkZap}" target="_blank" class="btn-zap-small">ZAP</a> ${botoes}
-                </div>
-                <div class="itens-box">${itens}</div>
-                <div style="font-size:0.75rem;">Total: <b>R$ ${Number(p.valor_total).toFixed(2)}</b></div>
-            </div>`;
-    }
-
-    window.mudarAba = function(id, btn) {
-        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        document.getElementById('aba-' + id).classList.add('active');
-        if(btn) btn.classList.add('active');
-    };
-
-    function renderizarEstoque(e) {
-        document.getElementById('corpo-estoque').innerHTML = e.map(i => `
-            <tr class="linha-est" data-id="${i.id}">
-                <td>${i.nome}</td>
-                <td><input type="number" class="qtd" value="${i.quantidade || 0}" style="width:40px" onfocus="editandoEstoque=true" onblur="editandoEstoque=false"></td>
-                <td><input type="text" class="data" value="${i.dados_proximidade || ''}" style="width:80px" onfocus="editandoEstoque=true" onblur="editandoEstoque=false"></td>
-            </tr>`).join('');
-    }
-
-    window.salvarEstoque = async function() {
-        for (let l of document.querySelectorAll('.linha-est')) {
-            await _supa.from('estoque').update({ 
-                quantidade: l.querySelector('.qtd').value, 
-                dados_proximidade: l.querySelector('.data').value 
-            }).eq('id', l.dataset.id);
-        }
-        alert("Estoque updated!"); 
-        carregarTudo();
-    };
-
-    setInterval(carregarTudo, 30000);
-    window.onload = carregarTudo;
-</script>
-</body>
-</html>
+        document.getElementById('lista-desistencias').innerHTML =
