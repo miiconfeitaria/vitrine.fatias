@@ -56,6 +56,7 @@
         .btn-mini-restaurar { background: var(--azul); }
         .btn-mini-apagar { background: var(--vermelho); }
         .btn-mini-restaurar-res { background: var(--laranja); }
+        .btn-mini-apagar-status { background: var(--azul); } /* Definição visual do botão A Receber */
         
         .btn-zap-small { text-decoration: none; background: #25d366; color: white; padding: 5px 12px; border-radius: 4px; font-size: 0.65rem; font-weight: bold; text-transform: uppercase; }
 
@@ -217,11 +218,11 @@
         } else if (statusReal === 'Finalizado') {
             botoes = `<div class="btn-mini-group"><button class="btn-mini btn-mini-restaurar" data-id="${p.id}">Restaurar</button></div>`;
         } else if (statusReal === 'A Pagar') {
-            botoes = `<div class="btn-mini-group"><button class="btn-mini btn-mini-concluir btn-mini-marcar-pago" data-id="${p.id}">Marcar como Pago</button><button class="btn-mini btn-mini-desistir" data-id="${p.id}">Desistência</button></div>`;
+            botoes = `<div class="btn-mini-group"><button class="btn-mini btn-mini-marcar-pago" data-id="${p.id}">Marcar como Pago</button><button class="btn-mini btn-mini-desistir" data-id="${p.id}">Desistência</button></div>`;
         } else if (statusReal === 'Pago Pendurado') {
             botoes = `<div class="btn-mini-group"><button class="btn-mini btn-mini-concluir" data-id="${p.id}">Mover para Vendas ✅</button></div>`;
         } else {
-            botoes = `<div class="btn-mini-group"><button class="btn-mini btn-mini-concluir" data-id="${p.id}">Venda Concluída</button><button class="btn-mini btn-mini-restaurar btn-mini-apagar-status" data-id="${p.id}">A Receber</button><button class="btn-mini btn-mini-desistir" data-id="${p.id}">Desistência</button></div>`;
+            botoes = `<div class="btn-mini-group"><button class="btn-mini btn-mini-concluir" data-id="${p.id}">Venda Concluída</button><button class="btn-mini btn-mini-apagar-status" data-id="${p.id}">A Receber</button><button class="btn-mini btn-mini-desistir" data-id="${p.id}">Desistência</button></div>`;
         }
 
         const classeFinalizado = statusReal === 'Finalizado' ? 'is-finalizado' : '';
