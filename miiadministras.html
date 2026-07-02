@@ -169,4 +169,13 @@
         document.getElementById('lista-reservas').innerHTML = html.reservas || "<p style='text-align:center; padding:20px; opacity:0.5;'>Nenhuma reserva.</p>";
         document.getElementById('lista-abandonados').innerHTML = html.abandonados || "<p style='text-align:center; padding:20px; opacity:0.5;'>Nenhum carrinho abandonado.</p>";
         document.getElementById('lista-concluidos').innerHTML = html.concluidos || "<p style='text-align:center; padding:20px; opacity:0.5;'>Histórico vazio.</p>";
-        document.getElementById('lista-desistencias').innerHTML =
+        document.getElementById('lista-desistencias').innerHTML = html.desistencias || "<p style='text-align:center; padding:20px; opacity:0.5;'>Nenhuma desistência.</p>";
+    }
+
+    function gerarCard(p, itens, ehReserva, dataHora, ehDesistencia, ehRascunho) {
+        const linkZap = `https://wa.me/55${p.telefone?.replace(/\D/g,'')}`;
+        const statusReal = (p.status || "Novo").trim();
+        
+        let botoes = '';
+        if (ehRascunho) {
+            botoes = `<div class="btn-mini-group"><button class="
