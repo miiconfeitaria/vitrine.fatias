@@ -116,6 +116,16 @@
     const _supa = supabase.createClient('https://byowrfsxtnqoumakbina.supabase.co', 'sb_publishable_BDZCNE4WgBWiFThCvCtdNQ_WYULTwBx');
     let editandoEstoque = false;
 
+    // Função isolada e direta para atualizar o status no Supabase sem depender das classes de cliques
+    async function atualizarStatusPedido(id, novoStatus) {
+        try {
+            await _supa.from('pedidos').update({ status: novoStatus }).eq('id', id);
+            await carregarTudo();
+        } catch (error) {
+            console.error("Erro ao atualizar o pedido:", error);
+        }
+    }
+
     document.addEventListener('click', async function(e) {
         const target = e.target;
         const id = target.getAttribute('data-id');
@@ -129,10 +139,6 @@
             await _supa.from('pedidos').update({ status: 'Novo' }).eq('id', id);
         } else if (target.classList.contains('btn-mini-restaurar-res')) {
             await _supa.from('pedidos').update({ status: 'Reserva' }).eq('id', id);
-        } else if (target.classList.contains('btn-mini-apagar-status')) {
-            await _supa.from('pedidos').update({ status: 'A Pagar' }).eq('id', id);
-        } else if (target.classList.contains('btn-mini-marcar-pago')) {
-            await _supa.from('pedidos').update({ status: 'Pago Pendurado' }).eq('id', id);
         } else if (target.classList.contains('btn-mini-apagar')) {
             if (confirm("Tem certeza que deseja excluir permanentemente este pedido?")) {
                 await _supa.from('pedidos').delete().eq('id', id);
@@ -218,11 +224,11 @@
         } else if (statusReal === 'Finalizado') {
             botoes = `<div class="btn-mini-group"><button class="btn-mini btn-mini-restaurar" data-id="${p.id}">Restaurar</button></div>`;
         } else if (statusReal === 'A Pagar') {
-            botoes = `<div class="btn-mini-group"><button class="btn-mini btn-mini-marcar-pago" data-id="${p.id}">Marcar como Pago</button><button class="btn-mini btn-mini-desistir" data-id="${p.id}">Desistência</button></div>`;
+            botoes = `<div class="btn-mini-group"><button class="btn-mini btn-mini-concluir" onclick="atualizarStatusPedido('${p.id}', 'Pago Pendurado')">Marcar como Pago</button><button class="btn-mini btn-mini-desistir" data-id="${p.id}">Desistência</button></div>`;
         } else if (statusReal === 'Pago Pendurado') {
-            botoes = `<div class="btn-mini-group"><button class="btn-mini btn-mini-concluir" data-id="${p.id}">Mover para Vendas ✅</button></div>`;
+            botoes = `<div class="btn-mini-group"><button class="btn-mini btn-mini-concluir" onclick="atualizarStatusPedido('${p.id}', 'Finalizado')">Mover para Vendas ✅</button></div>`;
         } else {
-            botoes = `<div class="btn-mini-group"><button class="btn-mini btn-mini-concluir" data-id="${p.id}">Venda Concluída</button><button class="btn-mini btn-mini-apagar-status" data-id="${p.id}">A Receber</button><button class="btn-mini btn-mini-desistir" data-id="${p.id}">Desistência</button></div>`;
+            botoes = `<div class="btn-mini-group"><button class="btn-mini btn-mini-concluir" data-id="${p.id}">Venda Concluída</button><button class="btn-mini btn-mini-apagar-status" onclick="atualizarStatusPedido('${p.id}', 'A Pagar')">A Receber</button><button class="btn-mini btn-mini-desistir" data-id="${p.id}">Desistência</button></div>`;
         }
 
         const classeFinalizado = statusReal === 'Finalizado' ? 'is-finalizado' : '';
@@ -231,4 +237,53 @@
         const classePagoPendurado = ehPagoPendurado ? 'is-pago-pendurado' : '';
 
         let badgeTexto = '✅ OK', badgeClasse = 'bg-pronta';
-        if (ehDesistencia) { badgeTexto =
+        if (ehDesistencia) { badgeTexto = 'OFF'; badgeClasse = 'bg-cancel'; }
+        else if (ehReserva) { badgeTexto = '🕒 RES'; badgeClasse = 'bg-reserva'; }
+        else if (ehRascunho) { badgeTexto = '🛒 CAR'; badgeClasse = 'bg-rascunho'; }
+        else if (ehApagar) { badgeTexto = '🛑 DEVENDO'; badgeClasse = 'bg-apagar'; }
+        else if (ehPagoPendurado) { badgeTexto = '💰 PAGO'; badgeClasse = 'bg-pronta'; }
+
+        return `<div class="card-pedido ${ehReserva ? 'is-reserva' : ''} ${ehDesistencia ? 'is-desistencia' : ''} ${classeFinalizado} ${classeRascunho} ${classeApagar} ${classePagoPendurado}">
+                <span class="badge ${badgeClasse}">${badgeTexto}</span>
+                <small style="display:block; color:#aaa; font-size: 0.6rem;">${dataHora}</small>
+                <strong style="font-size:0.9rem;">${p.nome}</strong>
+                <div style="font-size:0.8rem; margin:5px 0; display: flex; align-items: center; flex-wrap: wrap; gap: 5px;">
+                    📱 ${p.telefone} <a href="${linkZap}" target="_blank" class="btn-zap-small">ZAP</a> ${botoes}
+                </div>
+                <div class="itens-box">${itens}</div>
+                <div style="font-size:0.75rem;">Total: <b>R$ ${Number(p.valor_total).toFixed(2)}</b></div>
+            </div>`;
+    }
+
+    window.mudarAba = function(id, btn) {
+        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('aba-' + id).classList.add('active');
+        if(btn) btn.classList.add('active');
+    };
+
+    function renderizarEstoque(e) {
+        document.getElementById('corpo-estoque').innerHTML = e.map(i => `
+            <tr class="linha-est" data-id="${i.id}">
+                <td>${i.nome}</td>
+                <td><input type="number" class="qtd" value="${i.quantidade || 0}" style="width:40px" onfocus="editandoEstoque=true" onblur="editandoEstoque=false"></td>
+                <td><input type="text" class="data" value="${i.dados_proximidade || ''}" style="width:80px" onfocus="editandoEstoque=true" onblur="editandoEstoque=false"></td>
+            </tr>`).join('');
+    }
+
+    window.salvarEstoque = async function() {
+        for (let l of document.querySelectorAll('.linha-est')) {
+            await _supa.from('estoque').update({ 
+                quantidade: l.querySelector('.qtd').value, 
+                dados_proximidade: l.querySelector('.data').value 
+            }).eq('id', l.dataset.id);
+        }
+        alert("Estoque updated!"); 
+        carregarTudo();
+    };
+
+    setInterval(carregarTudo, 30000);
+    window.onload = carregarTudo;
+</script>
+</body>
+</html>
