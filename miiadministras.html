@@ -68,7 +68,6 @@
         
         .lista-pagadores { background: white; padding: 15px; border-radius: 15px; margin-bottom: 15px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
 
-        /* Janela customizada de Sim ou Não */
         .modal-pagador { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 1000; align-items: center; justify-content: center; }
         .modal-content { background: white; padding: 20px; border-radius: 15px; max-width: 300px; width: 90%; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
         .modal-buttons { display: flex; gap: 10px; justify-content: center; margin-top: 15px; }
@@ -156,7 +155,6 @@
     let editandoEstoque = false;
     let pedidoSelecionadoId = null;
 
-    // Funções isoladas para abrir e fechar a janela sem depender do leitor genérico de cliques
     window.abrirJanelaPergunta = function(id) {
         pedidoSelecionadoId = id;
         document.getElementById('janela-pergunta').style.display = 'flex';
@@ -245,7 +243,6 @@
             
             const card = gerarCard(p, p.itens, (status === 'Reserva'), dataPedido, (status === 'Desistencia'), (status === 'Rascunho'), (status === 'A Pagar'));
             
-            // Aceita os status normais de Finalizado E as novas tags de relatório na aba de Vendas Concluídas
             if (status === 'Finalizado' || status === 'Finalizado - Bom Pagador' || status === 'Finalizado - Mau Pagador') {
                 html.concluidos += card;
             } else if (status === 'Desistencia') {
@@ -275,19 +272,16 @@
     function renderizarRelatorios(lista) {
         let bonsHtml = "";
         let mausHtml = "";
-        let nomesAdicionadosBons = new Set();
-        let nomesAdicionadosMaus = new Set();
 
+        // Removido o filtro Set() para que todos os pedidos individuais apareçam na lista de relatórios, mesmo que sejam da mesma cliente
         lista.forEach(p => {
             const status = (p.status || "").trim();
             const nomeCliente = p.nome || "Sem Nome";
             const telefoneCliente = p.telefone || "Sem Telefone";
 
-            if (status === "Finalizado - Bom Pagador" && !nomesAdicionadosBons.has(nomeCliente)) {
-                nomesAdicionadosBons.add(nomeCliente);
+            if (status === "Finalizado - Bom Pagador") {
                 bonsHtml += `<tr><td><b>${nomeCliente}</b></td><td>${telefoneCliente}</td></tr>`;
-            } else if (status === "Finalizado - Mau Pagador" && !nomesAdicionadosMaus.has(nomeCliente)) {
-                nomesAdicionadosMaus.add(nomeCliente);
+            } else if (status === "Finalizado - Mau Pagador") {
                 mausHtml += `<tr><td><b>${nomeCliente}</b></td><td>${telefoneCliente}</td></tr>`;
             }
         });
@@ -308,7 +302,6 @@
         } else if (statusReal === 'Finalizado' || statusReal === 'Finalizado - Bom Pagador' || statusReal === 'Finalizado - Mau Pagador') {
             botoes = `<div class="btn-mini-group"><button class="btn-mini btn-mini-restaurar" data-id="${p.id}">Restaurar</button></div>`;
         } else if (statusReal === 'A Pagar') {
-            // Chama a caixinha direto ao clicar, passando o ID correto do pedido
             botoes = `<div class="btn-mini-group"><button class="btn-mini btn-mini-concluir" onclick="abrirJanelaPergunta('${p.id}')">Marcar como Recebido</button><button class="btn-mini btn-mini-desistir" data-id="${p.id}">Desistência</button></div>`;
         } else {
             botoes = `<div class="btn-mini-group"><button class="btn-mini btn-mini-concluir" data-id="${p.id}">Venda Concluída</button><button class="btn-mini btn-mini-apagar-status" data-id="${p.id}">A Receber</button><button class="btn-mini btn-mini-desistir" data-id="${p.id}">Desistência</button></div>`;
@@ -353,23 +346,4 @@
             <tr class="linha-est" data-id="${i.id}">
                 <td>${i.nome}</td>
                 <td><input type="number" class="qtd" value="${i.quantidade || 0}" style="width:40px" onfocus="editandoEstoque=true" onblur="editandoEstoque=false"></td>
-                <td><input type="text" class="data" value="${i.dados_proximidade || ''}" style="width:80px" onfocus="editandoEstoque=true" onblur="editandoEstoque=false"></td>
-            </tr>`).join('');
-    }
-
-    window.salvarEstoque = async function() {
-        for (let l of document.querySelectorAll('.linha-est')) {
-            await _supa.from('estoque').update({ 
-                quantidade: l.querySelector('.qtd').value, 
-                dados_proximidade: l.querySelector('.data').value 
-            }).eq('id', l.dataset.id);
-        }
-        alert("Estoque atualizado!"); 
-        carregarTudo();
-    };
-
-    setInterval(carregarTudo, 30000);
-    window.onload = carregarTudo;
-</script>
-</body>
-</html>
+                <td><input type="text" class="data" value="${
