@@ -73,7 +73,8 @@
         .modal-buttons { display: flex; gap: 10px; justify-content: center; margin-top: 15px; }
         .btn-modal { border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; text-transform: uppercase; font-size: 0.75rem; color: white; width: 80px; }
 
-        .input-valor-edicao { width: 70px; border: 1px solid #ddd; padding: 3px; border-radius: 5px; font-family: 'Montserrat', sans-serif; font-weight: bold; color: var(--marrom); font-size: 0.75rem; }
+        .input-valor-edicao { width: 65px; border: 1px solid #ddd; padding: 3px; border-radius: 5px; font-family: 'Montserrat', sans-serif; font-weight: bold; color: var(--marrom); font-size: 0.75rem; }
+        .input-data-combinada { width: 85px; border: 1px solid #ddd; padding: 3px; border-radius: 5px; font-family: 'Montserrat', sans-serif; font-size: 0.7rem; color: #555; margin-left: 5px; }
     </style>
 </head>
 <body>
@@ -184,9 +185,14 @@
         } else if (target.classList.contains('btn-mini-salvar-valor')) {
             const card = target.closest('.card-pedido');
             const novoValor = card.querySelector('.input-valor-edicao').value;
+            const dataCombinada = card.querySelector('.input-data-combinada').value;
             if (novoValor && !isNaN(novoValor)) {
-                await _supa.from('pedidos').update({ valor_total: Number(novoValor) }).eq('id', id);
-                alert("Valor atualizado com sucesso!");
+                // Atualiza o valor e salva a data combinada na coluna livre observacoes/forma_pagamento
+                await _supa.from('pedidos').update({ 
+                    valor_total: Number(novoValor),
+                    forma_pagamento: dataCombinada 
+                }).eq('id', id);
+                alert("Dados atualizados com sucesso!");
             }
         } else if (target.classList.contains('btn-mini-apagar')) {
             if (confirm("Tem certeza que deseja excluir permanentemente este pedido?")) {
@@ -273,7 +279,6 @@
         let bonsHtml = "";
         let mausHtml = "";
 
-        // Removido o filtro Set() para que todos os pedidos individuais apareçam na lista de relatórios, mesmo que sejam da mesma cliente
         lista.forEach(p => {
             const status = (p.status || "").trim();
             const nomeCliente = p.nome || "Sem Nome";
@@ -317,9 +322,11 @@
         else if (ehRascunho) { badgeTexto = '🛒 CAR'; badgeClasse = 'bg-rascunho'; }
         else if (ehApagar) { badgeTexto = '🛑 DEVENDO'; badgeClasse = 'bg-apagar'; }
 
+        // Adiciona o campo de texto para você preencher a data do combinado
         let exibicaoValor = `Total: <b>R$ ${Number(p.valor_total).toFixed(2)}</b>`;
         if (statusReal === 'A Pagar') {
-            exibicaoValor = `Total: R$ <input type="number" step="0.01" class="input-valor-edicao" value="${Number(p.valor_total).toFixed(2)}"> <button class="btn-mini btn-mini-salvar-valor" data-id="${p.id}" style="padding: 2px 6px; font-size: 0.55rem; vertical-align: middle;">💾</button>`;
+            const dataSalva = p.forma_pagamento || '';
+            exibicaoValor = `Total: R$ <input type="number" step="0.01" class="input-valor-edicao" value="${Number(p.valor_total).toFixed(2)}"> | 📅 Combinado: <input type="text" class="input-data-combinada" placeholder="Ex: 10/11" value="${dataSalva}"> <button class="btn-mini btn-mini-salvar-valor" data-id="${p.id}" style="padding: 2px 6px; font-size: 0.55rem; vertical-align: middle;">💾</button>`;
         }
 
         return `<div class="card-pedido ${ehReserva ? 'is-reserva' : ''} ${ehDesistencia ? 'is-desistencia' : ''} ${classeFinalizado} ${classeRascunho} ${classeApagar}">
@@ -346,4 +353,23 @@
             <tr class="linha-est" data-id="${i.id}">
                 <td>${i.nome}</td>
                 <td><input type="number" class="qtd" value="${i.quantidade || 0}" style="width:40px" onfocus="editandoEstoque=true" onblur="editandoEstoque=false"></td>
-                <td><input type="text" class="data" value="${
+                <td><input type="text" class="data" value="${i.dados_proximidade || ''}" style="width:80px" onfocus="editandoEstoque=true" onblur="editandoEstoque=false"></td>
+            </tr>`).join('');
+    }
+
+    window.salvarEstoque = async function() {
+        for (let l of document.querySelectorAll('.linha-est')) {
+            await _supa.from('estoque').update({ 
+                quantidade: l.querySelector('.qtd').value, 
+                dados_proximidade: l.querySelector('.data').value 
+            }).eq('id', l.dataset.id);
+        }
+        alert("Estoque updated!"); 
+        carregarTudo();
+    };
+
+    setInterval(carregarTudo, 30000);
+    window.onload = carregarTudo;
+</script>
+</body>
+</html>
