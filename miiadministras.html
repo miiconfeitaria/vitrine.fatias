@@ -95,7 +95,7 @@
     <div class="resumo-receber" id="resumo-valores-receber">Aguardando Receber: R$ 0,00</div>
     <div class="divisoria-aba">⚠️ Pendentes de Pagamento</div>
     <div id="lista-apagar-pendentes"></div>
-    <div class="divisoria-aba">✅ Recebidos (Histórico)</div>
+    <div class="divisoria-aba">🏅 Histórico de Bons Pagadores (Recebidos)</div>
     <div id="lista-apagar-recebidos"></div>
 </div>
 
@@ -132,7 +132,9 @@
         } else if (target.classList.contains('btn-mini-apagar-status')) {
             await _supa.from('pedidos').update({ status: 'A Pagar' }).eq('id', id);
         } else if (target.classList.contains('btn-mini-marcar-pago')) {
-            await _supa.from('pedidos').update({ status: 'Pago Pendurado' }).eq('id', id);
+            // Quando clica em Marcar como Recebido, ele vira Finalizado (entra nas vendas concluídas)
+            // mas nós salvamos uma marcação na observação interna para ele continuar aparecendo aqui embaixo
+            await _supa.from('pedidos').update({ status: 'Finalizado', forma_pagamento: 'Recebido Pendurado' }).eq('id', id);
         } else if (target.classList.contains('btn-mini-apagar')) {
             if (confirm("Tem certeza que deseja excluir permanentemente este pedido?")) {
                 await _supa.from('pedidos').delete().eq('id', id);
@@ -172,11 +174,16 @@
         lista.forEach(p => {
             const dataPedido = new Date(p.created_at).toLocaleString('pt-BR');
             const status = (p.status || "").trim();
+            const eRecebidoPendurado = p.forma_pagamento === 'Recebido Pendurado';
             
-            const card = gerarCard(p, p.itens, (status === 'Reserva'), dataPedido, (status === 'Desistencia'), (status === 'Rascunho'), (status === 'A Pagar'), (status === 'Pago Pendurado'));
+            const card = gerarCard(p, p.itens, (status === 'Reserva'), dataPedido, (status === 'Desistencia'), (status === 'Rascunho'), (status === 'A Pagar'), eRecebidoPendurado);
             
             if (status === 'Finalizado') {
                 html.concluidos += card;
+                // Se foi um pedido finalizado que veio do "A Receber", ele também entra na lista de recebidos daquela aba
+                if (eRecebidoPendurado) {
+                    html.apagarRecebidos += card;
+                }
             } else if (status === 'Desistencia') {
                 html.desistencias += card;
             } else if (status === 'Rascunho') {
@@ -188,8 +195,6 @@
             } else if (status === 'A Pagar') {
                 html.apagarPendentes += card;
                 totalAguardando += Number(p.valor_total || 0);
-            } else if (status === 'Pago Pendurado') {
-                html.apagarRecebidos += card;
             }
         });
 
@@ -219,8 +224,6 @@
             botoes = `<div class="btn-mini-group"><button class="btn-mini btn-mini-restaurar" data-id="${p.id}">Restaurar</button></div>`;
         } else if (statusReal === 'A Pagar') {
             botoes = `<div class="btn-mini-group"><button class="btn-mini btn-mini-concluir btn-mini-marcar-pago" data-id="${p.id}">Marcar como Recebido</button><button class="btn-mini btn-mini-desistir" data-id="${p.id}">Desistência</button></div>`;
-        } else if (statusReal === 'Pago Pendurado') {
-            botoes = `<div class="btn-mini-group"><button class="btn-mini btn-mini-concluir" data-id="${p.id}">Mover para Vendas ✅</button></div>`;
         } else {
             botoes = `<div class="btn-mini-group"><button class="btn-mini btn-mini-concluir" data-id="${p.id}">Venda Concluída</button><button class="btn-mini btn-mini-apagar-status" data-id="${p.id}">A Receber</button><button class="btn-mini btn-mini-desistir" data-id="${p.id}">Desistência</button></div>`;
         }
@@ -235,7 +238,7 @@
         else if (ehReserva) { badgeTexto = '🕒 RES'; badgeClasse = 'bg-reserva'; }
         else if (ehRascunho) { badgeTexto = '🛒 CAR'; badgeClasse = 'bg-rascunho'; }
         else if (ehApagar) { badgeTexto = '🛑 DEVENDO'; badgeClasse = 'bg-apagar'; }
-        else if (ehPagoPendurado) { badgeTexto = '💰 PAGO'; badgeClasse = 'bg-pronta'; }
+        else if (ehPagoPendurado) { badgeTexto = '🏅 BOM PAGADOR'; badgeClasse = 'bg-pronta'; }
 
         return `<div class="card-pedido ${ehReserva ? 'is-reserva' : ''} ${ehDesistencia ? 'is-desistencia' : ''} ${classeFinalizado} ${classeRascunho} ${classeApagar} ${classePagoPendurado}">
                 <span class="badge ${badgeClasse}">${badgeTexto}</span>
