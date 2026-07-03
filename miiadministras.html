@@ -75,6 +75,9 @@
 
         .input-valor-edicao { width: 65px; border: 1px solid #ddd; padding: 3px; border-radius: 5px; font-family: 'Montserrat', sans-serif; font-weight: bold; color: var(--marrom); font-size: 0.75rem; }
         .input-data-combinada { width: 85px; border: 1px solid #ddd; padding: 3px; border-radius: 5px; font-family: 'Montserrat', sans-serif; font-size: 0.7rem; color: #555; margin-left: 5px; }
+        
+        /* Tag para mostrar a data salva de forma elegante no card */
+        .tag-data-combinada { display: inline-block; background-color: #ebf5ff; color: #0066cc; padding: 4px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: bold; margin-bottom: 8px; border: 1px solid #cce3ff; }
     </style>
 </head>
 <body>
@@ -187,7 +190,6 @@
             const novoValor = card.querySelector('.input-valor-edicao').value;
             const dataCombinada = card.querySelector('.input-data-combinada').value;
             if (novoValor && !isNaN(novoValor)) {
-                // Atualiza o valor e salva a data combinada na coluna livre observacoes/forma_pagamento
                 await _supa.from('pedidos').update({ 
                     valor_total: Number(novoValor),
                     forma_pagamento: dataCombinada 
@@ -322,11 +324,16 @@
         else if (ehRascunho) { badgeTexto = '🛒 CAR'; badgeClasse = 'bg-rascunho'; }
         else if (ehApagar) { badgeTexto = '🛑 DEVENDO'; badgeClasse = 'bg-apagar'; }
 
-        // Adiciona o campo de texto para você preencher a data do combinado
+        // Monta os campos de edição e exibe a Tag fixa do combinado caso já exista um valor salvo
         let exibicaoValor = `Total: <b>R$ ${Number(p.valor_total).toFixed(2)}</b>`;
+        let tagDataFixa = '';
+        
         if (statusReal === 'A Pagar') {
             const dataSalva = p.forma_pagamento || '';
-            exibicaoValor = `Total: R$ <input type="number" step="0.01" class="input-valor-edicao" value="${Number(p.valor_total).toFixed(2)}"> | 📅 Combinado: <input type="text" class="input-data-combinada" placeholder="Ex: 10/11" value="${dataSalva}"> <button class="btn-mini btn-mini-salvar-valor" data-id="${p.id}" style="padding: 2px 6px; font-size: 0.55rem; vertical-align: middle;">💾</button>`;
+            if (dataSalva) {
+                tagDataFixa = `<div class="tag-data-combinada">📅 Paga dia: ${dataSalva}</div>`;
+            }
+            exibicaoValor = `Total: R$ <input type="number" step="0.01" class="input-valor-edicao" value="${Number(p.valor_total).toFixed(2)}"> | Alterar Dia: <input type="text" class="input-data-combinada" placeholder="Ex: 10/11" value="${dataSalva}"> <button class="btn-mini btn-mini-salvar-valor" data-id="${p.id}" style="padding: 2px 6px; font-size: 0.55rem; vertical-align: middle;">💾</button>`;
         }
 
         return `<div class="card-pedido ${ehReserva ? 'is-reserva' : ''} ${ehDesistencia ? 'is-desistencia' : ''} ${classeFinalizado} ${classeRascunho} ${classeApagar}">
@@ -337,6 +344,7 @@
                     📱 ${p.telefone} <a href="${linkZap}" target="_blank" class="btn-zap-small">ZAP</a> ${botoes}
                 </div>
                 <div class="itens-box">${itens}</div>
+                ${tagDataFixa}
                 <div style="font-size:0.75rem;">${exibicaoValor}</div>
             </div>`;
     }
