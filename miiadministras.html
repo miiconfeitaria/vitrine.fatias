@@ -68,12 +68,12 @@
         
         .lista-pagadores { background: white; padding: 15px; border-radius: 15px; margin-bottom: 15px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
 
+        /* Estilo da caixinha de Sim ou Não */
         .modal-pagador { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 1000; align-items: center; justify-content: center; }
         .modal-content { background: white; padding: 20px; border-radius: 15px; max-width: 300px; width: 90%; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
         .modal-buttons { display: flex; gap: 10px; justify-content: center; margin-top: 15px; }
         .btn-modal { border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; text-transform: uppercase; font-size: 0.75rem; color: white; width: 80px; }
 
-        /* Estilo do campo de edição de valor */
         .input-valor-edicao { width: 70px; border: 1px solid #ddd; padding: 3px; border-radius: 5px; font-family: 'Montserrat', sans-serif; font-weight: bold; color: var(--marrom); font-size: 0.75rem; }
     </style>
 </head>
@@ -175,12 +175,11 @@
             pedidoSelecionadoId = id;
             document.getElementById('janela-pergunta').style.display = 'flex';
         } else if (target.classList.contains('btn-mini-salvar-valor')) {
-            // Captura o input de valor específico deste card
             const card = target.closest('.card-pedido');
             const novoValor = card.querySelector('.input-valor-edicao').value;
             if (novoValor && !isNaN(novoValor)) {
                 await _supa.from('pedidos').update({ valor_total: Number(novoValor) }).eq('id', id);
-                alert("Valor atualizado com sucesso!");
+                alert("Valor atualizado!");
             }
         } else if (target.classList.contains('btn-mini-apagar')) {
             if (confirm("Tem certeza que deseja excluir permanentemente este pedido?")) {
@@ -192,13 +191,13 @@
 
     document.getElementById('btn-sim-pagador').addEventListener('click', async function() {
         if (!pedidoSelecionadoId) return;
-        await _supa.from('pedidos').update({ status: 'Finalizado', dados_proximidade: 'Bom Pagador' }).eq('id', pedidoSelecionadoId);
+        await _supa.from('pedidos').update({ status: 'Finalizado', forma_pagamento: 'Bom Pagador' }).eq('id', pedidoSelecionadoId);
         fecharJanelaPergunta();
     });
 
     document.getElementById('btn-nao-pagador').addEventListener('click', async function() {
         if (!pedidoSelecionadoId) return;
-        await _supa.from('pedidos').update({ status: 'Finalizado', dados_proximidade: 'Mau Pagador' }).eq('id', pedidoSelecionadoId);
+        await _supa.from('pedidos').update({ status: 'Finalizado', forma_pagamento: 'Mau Pagador' }).eq('id', pedidoSelecionadoId);
         fecharJanelaPergunta();
     });
 
@@ -276,4 +275,96 @@
         let nomesAdicionadosMaus = new Set();
 
         lista.forEach(p => {
-            const avaliacao = (p
+            const avaliacao = (p.forma_pagamento || "").trim();
+            const nomeCliente = p.nome || "Sem Nome";
+            const telefoneCliente = p.telefone || "Sem Telefone";
+
+            if (avaliacao === "Bom Pagador" && !nomesAdicionadosBons.has(nomeCliente)) {
+                nomesAdicionadosBons.add(nomeCliente);
+                bonsHtml += `<tr><td><b>${nomeCliente}</b></td><td>${telefoneCliente}</td></tr>`;
+            } else if (avaliacao === "Mau Pagador" && !nomesAdicionadosMaus.has(nomeCliente)) {
+                nomesAdicionadosMaus.add(nomeCliente);
+                mausHtml += `<tr><td><b>${nomeCliente}</b></td><td>${telefoneCliente}</td></tr>`;
+            }
+        });
+
+        document.getElementById('lista-bons-pagadores').innerHTML = bonsHtml || "<tr><td colspan='2' style='opacity:0.5; text-align:center; padding:10px;'>Nenhum registrado.</td></tr>";
+        document.getElementById('lista-maus-pagadores').innerHTML = mausHtml || "<tr><td colspan='2' style='opacity:0.5; text-align:center; padding:10px;'>Nenhum registrado.</td></tr>";
+    }
+
+    function gerarCard(p, itens, ehReserva, dataHora, ehDesistencia, ehRascunho, ehApagar) {
+        const linkZap = `https://wa.me/55${p.telefone?.replace(/\D/g,'')}`;
+        const statusReal = (p.status || "Novo").trim();
+        
+        let botoes = '';
+        if (ehRascunho) {
+            botoes = `<div class="btn-mini-group"><button class="btn-mini btn-mini-restaurar" data-id="${p.id}">Mudar para Novo</button><button class="btn-mini btn-mini-restaurar-res" data-id="${p.id}">Mudar para Reserva</button><button class="btn-mini btn-mini-apagar" data-id="${p.id}">Apagar</button></div>`;
+        } else if (statusReal === 'Desistencia') {
+            botoes = `<div class="btn-mini-group"><button class="btn-mini btn-mini-restaurar" data-id="${p.id}">Restaurar</button><button class="btn-mini btn-mini-apagar" data-id="${p.id}">Apagar</button></div>`;
+        } else if (statusReal === 'Finalizado') {
+            botoes = `<div class="btn-mini-group"><button class="btn-mini btn-mini-restaurar" data-id="${p.id}">Restaurar</button></div>`;
+        } else if (statusReal === 'A Pagar') {
+            botoes = `<div class="btn-mini-group"><button class="btn-mini btn-mini-concluir btn-mini-marcar-pago" data-id="${p.id}">Marcar como Recebido</button><button class="btn-mini btn-mini-desistir" data-id="${p.id}">Desistência</button></div>`;
+        } else {
+            botoes = `<div class="btn-mini-group"><button class="btn-mini btn-mini-concluir" data-id="${p.id}">Venda Concluída</button><button class="btn-mini btn-mini-apagar-status" data-id="${p.id}">A Receber</button><button class="btn-mini btn-mini-desistir" data-id="${p.id}">Desistência</button></div>`;
+        }
+
+        const classeFinalizado = statusReal === 'Finalizado' ? 'is-finalizado' : '';
+        const classeRascunho = ehRascunho ? 'is-rascunho' : '';
+        const classeApagar = ehApagar ? 'is-apagar' : '';
+
+        let badgeTexto = '✅ OK', badgeClasse = 'bg-pronta';
+        if (ehDesistencia) { badgeTexto = 'OFF'; badgeClasse = 'bg-cancel'; }
+        else if (ehReserva) { badgeTexto = '🕒 RES'; badgeClasse = 'bg-reserva'; }
+        else if (ehRascunho) { badgeTexto = '🛒 CAR'; badgeClasse = 'bg-rascunho'; }
+        else if (ehApagar) { badgeTexto = '🛑 DEVENDO'; badgeClasse = 'bg-apagar'; }
+
+        let exibicaoValor = `Total: <b>R$ ${Number(p.valor_total).toFixed(2)}</b>`;
+        if (statusReal === 'A Pagar') {
+            exibicaoValor = `Total: R$ <input type="number" step="0.01" class="input-valor-edicao" value="${Number(p.valor_total).toFixed(2)}"> <button class="btn-mini btn-mini-salvar-valor" data-id="${p.id}" style="padding: 2px 6px; font-size: 0.55rem; vertical-align: middle;">💾</button>`;
+        }
+
+        return `<div class="card-pedido ${ehReserva ? 'is-reserva' : ''} ${ehDesistencia ? 'is-desistencia' : ''} ${classeFinalizado} ${classeRascunho} ${classeApagar}">
+                <span class="badge ${badgeClasse}">${badgeTexto}</span>
+                <small style="display:block; color:#aaa; font-size: 0.6rem;">${dataHora}</small>
+                <strong style="font-size:0.9rem;">${p.nome}</strong>
+                <div style="font-size:0.8rem; margin:5px 0; display: flex; align-items: center; flex-wrap: wrap; gap: 5px;">
+                    📱 ${p.telefone} <a href="${linkZap}" target="_blank" class="btn-zap-small">ZAP</a> ${botoes}
+                </div>
+                <div class="itens-box">${itens}</div>
+                <div style="font-size:0.75rem;">${exibicaoValor}</div>
+            </div>`;
+    }
+
+    window.mudarAba = function(id, btn) {
+        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('aba-' + id).classList.add('active');
+        if(btn) btn.classList.add('active');
+    };
+
+    function renderizarEstoque(e) {
+        document.getElementById('corpo-estoque').innerHTML = e.map(i => `
+            <tr class="linha-est" data-id="${i.id}">
+                <td>${i.nome}</td>
+                <td><input type="number" class="qtd" value="${i.quantidade || 0}" style="width:40px" onfocus="editandoEstoque=true" onblur="editandoEstoque=false"></td>
+                <td><input type="text" class="data" value="${i.dados_proximidade || ''}" style="width:80px" onfocus="editandoEstoque=true" onblur="editandoEstoque=false"></td>
+            </tr>`).join('');
+    }
+
+    window.salvarEstoque = async function() {
+        for (let l of document.querySelectorAll('.linha-est')) {
+            await _supa.from('estoque').update({ 
+                quantidade: l.querySelector('.qtd').value, 
+                dados_proximidade: l.querySelector('.data').value 
+            }).eq('id', l.dataset.id);
+        }
+        alert("Estoque atualizado!"); 
+        carregarTudo();
+    };
+
+    setInterval(carregarTudo, 30000);
+    window.onload = carregarTudo;
+</script>
+</body>
+</html>
