@@ -66,12 +66,6 @@
         .divisoria-aba { font-size: 0.75rem; text-transform: uppercase; font-weight: bold; color: #888; margin: 20px 0 10px 0; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
         
         .lista-pagadores { background: white; padding: 15px; border-radius: 15px; margin-bottom: 15px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
-
-        /* Estilo da caixinha de Sim ou Não */
-        .modal-pagador { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 1000; align-items: center; justify-content: center; }
-        .modal-content { background: white; padding: 20px; border-radius: 15px; max-width: 300px; width: 90%; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        .modal-buttons { display: flex; gap: 10px; justify-content: center; margin-top: 15px; }
-        .btn-modal { border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; text-transform: uppercase; font-size: 0.75rem; color: white; width: 80px; }
     </style>
 </head>
 <body>
@@ -137,21 +131,9 @@
     </div>
 </div>
 
-<div id="janela-pergunta" class="modal-shadow modal-pagador">
-    <div class="modal-content">
-        <strong style="font-size: 0.95rem; display: block; margin-bottom: 10px; color: var(--marrom);">Mii Cakes Admin</strong>
-        <p style="font-size: 0.85rem; margin: 0; color: #555;">Este cliente é um bom pagador?</p>
-        <div class="modal-buttons">
-            <button id="btn-sim-pagador" class="btn-modal" style="background: var(--verde);">Sim</button>
-            <button id="btn-nao-pagador" class="btn-modal" style="background: var(--vermelho);">Não</button>
-        </div>
-    </div>
-</div>
-
 <script>
     const _supa = supabase.createClient('https://byowrfsxtnqoumakbina.supabase.co', 'sb_publishable_BDZCNE4WgBWiFThCvCtdNQ_WYULTwBx');
     let editandoEstoque = false;
-    let pedidoSelecionadoId = null;
 
     document.addEventListener('click', async function(e) {
         const target = e.target;
@@ -169,9 +151,12 @@
         } else if (target.classList.contains('btn-mini-apagar-status')) {
             await _supa.from('pedidos').update({ status: 'A Pagar' }).eq('id', id);
         } else if (target.classList.contains('btn-mini-marcar-pago')) {
-            // Guarda o ID do pedido e abre a caixinha customizada de Sim ou Não
-            pedidoSelecionadoId = id;
-            document.getElementById('janela-pergunta').style.display = 'flex';
+            // Janela interativa perguntando sobre o cliente
+            const bomPagador = confirm("Este cliente é um bom pagador?\n\nClique em OK para SIM\nClique em CANCELAR para NÃO");
+            const avaliacao = bomPagador ? 'Bom Pagador' : 'Mau Pagador';
+            
+            // Move para venda concluída e guarda a nota de pagador na coluna livre dados_proximidade
+            await _supa.from('pedidos').update({ status: 'Finalizado', dados_proximidade: avaliacao }).eq('id', id);
         } else if (target.classList.contains('btn-mini-apagar')) {
             if (confirm("Tem certeza que deseja excluir permanentemente este pedido?")) {
                 await _supa.from('pedidos').delete().eq('id', id);
@@ -179,25 +164,6 @@
         }
         await carregarTudo();
     });
-
-    // Configura os cliques dos novos botões SIM e NÃO da caixinha
-    document.getElementById('btn-sim-pagador').addEventListener('click', async function() {
-        if (!pedidoSelecionadoId) return;
-        await _supa.from('pedidos').update({ status: 'Finalizado', dados_proximidade: 'Bom Pagador' }).eq('id', pedidoSelecionadoId);
-        fecharJanelaPergunta();
-    });
-
-    document.getElementById('btn-nao-pagador').addEventListener('click', async function() {
-        if (!pedidoSelecionadoId) return;
-        await _supa.from('pedidos').update({ status: 'Finalizado', dados_proximidade: 'Mau Pagador' }).eq('id', pedidoSelecionadoId);
-        fecharJanelaPergunta();
-    });
-
-    function fecharJanelaPergunta() {
-        document.getElementById('janela-pergunta').style.display = 'none';
-        pedidoSelecionadoId = null;
-        carregarTudo();
-    }
 
     async function carregarTudo() {
         const { data: pedidos } = await _supa.from('pedidos').select('*').order('created_at', { ascending: false });
