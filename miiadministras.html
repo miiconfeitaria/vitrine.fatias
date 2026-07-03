@@ -37,7 +37,6 @@
         .card-pedido.is-finalizado { border-left-color: var(--verde); opacity: 0.9; }
         .card-pedido.is-rascunho { border-left-color: var(--roxo); }
         .card-pedido.is-apagar { border-left-color: var(--vermelho); background-color: var(--vermelho-claro); }
-        .card-pedido.is-pago-pendurado { border-left-color: var(--verde); background-color: var(--verde-claro); }
         
         .badge { position: absolute; top: 15px; right: 15px; padding: 4px 8px; border-radius: 6px; font-size: 0.6rem; font-weight: 900; color: white; text-transform: uppercase; }
         .bg-reserva { background: var(--laranja); }
@@ -65,6 +64,14 @@
 
         .resumo-receber { background: white; padding: 12px; border-radius: 12px; font-size: 0.85rem; font-weight: bold; margin-bottom: 15px; border: 1px dashed var(--rosa-topo); text-align: center; }
         .divisoria-aba { font-size: 0.75rem; text-transform: uppercase; font-weight: bold; color: #888; margin: 20px 0 10px 0; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
+        
+        .lista-pagadores { background: white; padding: 15px; border-radius: 15px; margin-bottom: 15px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
+
+        /* Estilo da caixinha de Sim ou Não */
+        .modal-pagador { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 1000; align-items: center; justify-content: center; }
+        .modal-content { background: white; padding: 20px; border-radius: 15px; max-width: 300px; width: 90%; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .modal-buttons { display: flex; gap: 10px; justify-content: center; margin-top: 15px; }
+        .btn-modal { border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; text-transform: uppercase; font-size: 0.75rem; color: white; width: 80px; }
     </style>
 </head>
 <body>
@@ -86,6 +93,7 @@
     <button class="tab-btn" id="tab-concluidos" onclick="mudarAba('concluidos', this)">Vendas ✅</button>
     <button class="tab-btn" id="tab-desistencias" onclick="mudarAba('desistencias', this)">Desistências ❌</button>
     <button class="tab-btn" id="tab-estoque" onclick="mudarAba('estoque', this)">Estoque 📦</button>
+    <button class="tab-btn" id="tab-relatorios" onclick="mudarAba('relatorios', this)">Relatórios 📊</button>
 </div>
 
 <div id="aba-novos" class="section active"><div id="lista-novos"></div></div>
@@ -95,13 +103,12 @@
     <div class="resumo-receber" id="resumo-valores-receber">Aguardando Receber: R$ 0,00</div>
     <div class="divisoria-aba">⚠️ Pendentes de Pagamento</div>
     <div id="lista-apagar-pendentes"></div>
-    <div class="divisoria-aba">🏅 Histórico de Bons Pagadores (Recebidos)</div>
-    <div id="lista-apagar-recebidos"></div>
 </div>
 
 <div id="aba-abandonados" class="section"><div id="lista-abandonados"></div></div>
 <div id="aba-concluidos" class="section"><div id="lista-concluidos"></div></div>
 <div id="aba-desistencias" class="section"><div id="lista-desistencias"></div></div>
+
 <div id="aba-estoque" class="section">
     <div style="background:white; padding:15px; border-radius:15px;">
         <button onclick="salvarEstoque()" style="background:var(--verde); color:white; width:100%; padding:10px; border:none; border-radius:10px; font-weight:bold; margin-bottom:15px; cursor:pointer;">💾 Atualizar Estoque</button>
@@ -112,9 +119,39 @@
     </div>
 </div>
 
+<div id="aba-relatorios" class="section">
+    <div class="lista-pagadores">
+        <h3 style="color: var(--verde); margin-top: 0; font-size: 0.9rem; text-transform: uppercase;">🏅 Bons Pagadores</h3>
+        <table style="width: 100%;">
+            <thead><tr><th>Nome</th><th>Telefone</th></tr></thead>
+            <tbody id="lista-bons-pagadores"></tbody>
+        </table>
+    </div>
+    
+    <div class="lista-pagadores" style="border-top: 3px solid var(--vermelho);">
+        <h3 style="color: var(--vermelho); margin-top: 0; font-size: 0.9rem; text-transform: uppercase;">🛑 Maus Pagadores</h3>
+        <table style="width: 100%;">
+            <thead><tr><th>Nome</th><th>Telefone</th></tr></thead>
+            <tbody id="lista-maus-pagadores"></tbody>
+        </table>
+    </div>
+</div>
+
+<div id="janela-pergunta" class="modal-shadow modal-pagador">
+    <div class="modal-content">
+        <strong style="font-size: 0.95rem; display: block; margin-bottom: 10px; color: var(--marrom);">Mii Cakes Admin</strong>
+        <p style="font-size: 0.85rem; margin: 0; color: #555;">Este cliente é um bom pagador?</p>
+        <div class="modal-buttons">
+            <button id="btn-sim-pagador" class="btn-modal" style="background: var(--verde);">Sim</button>
+            <button id="btn-nao-pagador" class="btn-modal" style="background: var(--vermelho);">Não</button>
+        </div>
+    </div>
+</div>
+
 <script>
     const _supa = supabase.createClient('https://byowrfsxtnqoumakbina.supabase.co', 'sb_publishable_BDZCNE4WgBWiFThCvCtdNQ_WYULTwBx');
     let editandoEstoque = false;
+    let pedidoSelecionadoId = null;
 
     document.addEventListener('click', async function(e) {
         const target = e.target;
@@ -132,7 +169,9 @@
         } else if (target.classList.contains('btn-mini-apagar-status')) {
             await _supa.from('pedidos').update({ status: 'A Pagar' }).eq('id', id);
         } else if (target.classList.contains('btn-mini-marcar-pago')) {
-            await _supa.from('pedidos').update({ status: 'Recebido' }).eq('id', id);
+            // Guarda o ID do pedido e abre a caixinha customizada de Sim ou Não
+            pedidoSelecionadoId = id;
+            document.getElementById('janela-pergunta').style.display = 'flex';
         } else if (target.classList.contains('btn-mini-apagar')) {
             if (confirm("Tem certeza que deseja excluir permanentemente este pedido?")) {
                 await _supa.from('pedidos').delete().eq('id', id);
@@ -141,6 +180,25 @@
         await carregarTudo();
     });
 
+    // Configura os cliques dos novos botões SIM e NÃO da caixinha
+    document.getElementById('btn-sim-pagador').addEventListener('click', async function() {
+        if (!pedidoSelecionadoId) return;
+        await _supa.from('pedidos').update({ status: 'Finalizado', dados_proximidade: 'Bom Pagador' }).eq('id', pedidoSelecionadoId);
+        fecharJanelaPergunta();
+    });
+
+    document.getElementById('btn-nao-pagador').addEventListener('click', async function() {
+        if (!pedidoSelecionadoId) return;
+        await _supa.from('pedidos').update({ status: 'Finalizado', dados_proximidade: 'Mau Pagador' }).eq('id', pedidoSelecionadoId);
+        fecharJanelaPergunta();
+    });
+
+    function fecharJanelaPergunta() {
+        document.getElementById('janela-pergunta').style.display = 'none';
+        pedidoSelecionadoId = null;
+        carregarTudo();
+    }
+
     async function carregarTudo() {
         const { data: pedidos } = await _supa.from('pedidos').select('*').order('created_at', { ascending: false });
         const { data: estoque } = await _supa.from('estoque').select('*').order('nome');
@@ -148,6 +206,7 @@
         if (pedidos) { 
             renderizarPedidos(pedidos); 
             atualizarContadores(pedidos); 
+            renderizarRelatorios(pedidos);
         }
         if (estoque && !editandoEstoque) renderizarEstoque(estoque);
         
@@ -166,20 +225,17 @@
     }
 
     function renderizarPedidos(lista) {
-        let html = { novos: "", reservas: "", apagarPendentes: "", apagarRecebidos: "", abandonados: "", concluidos: "", desistencias: "" };
+        let html = { novos: "", reservas: "", apagarPendentes: "", abandonados: "", concluidos: "", desistencias: "" };
         let totalAguardando = 0;
         
         lista.forEach(p => {
             const dataPedido = new Date(p.created_at).toLocaleString('pt-BR');
             const status = (p.status || "").trim();
             
-            const card = gerarCard(p, p.itens, (status === 'Reserva'), dataPedido, (status === 'Desistencia'), (status === 'Rascunho'), (status === 'A Pagar'), (status === 'Recebido'));
+            const card = gerarCard(p, p.itens, (status === 'Reserva'), dataPedido, (status === 'Desistencia'), (status === 'Rascunho'), (status === 'A Pagar'));
             
-            if (status === 'Finalizado' || status === 'Recebido') {
-                html.concluidos += card; // Adiciona ambos na aba de Vendas Concluídas ✅
-                if (status === 'Recebido') {
-                    html.apagarRecebidos += card; // Se for recebido, entra também no histórico da aba A Receber 💸
-                }
+            if (status === 'Finalizado') {
+                html.concluidos += card;
             } else if (status === 'Desistencia') {
                 html.desistencias += card;
             } else if (status === 'Rascunho') {
@@ -198,16 +254,37 @@
 
         document.getElementById('lista-novos').innerHTML = html.novos || "<p style='text-align:center; padding:20px; opacity:0.5;'>Nenhum novo.</p>";
         document.getElementById('lista-reservas').innerHTML = html.reservas || "<p style='text-align:center; padding:20px; opacity:0.5;'>Nenhuma reserva.</p>";
-        
         document.getElementById('lista-apagar-pendentes').innerHTML = html.apagarPendentes || "<p style='text-align:center; padding:20px; opacity:0.5;'>Nenhum valor pendente.</p>";
-        document.getElementById('lista-apagar-recebidos').innerHTML = html.apagarRecebidos || "<p style='text-align:center; padding:20px; opacity:0.5;'>Nenhum histórico recente.</p>";
-        
         document.getElementById('lista-abandonados').innerHTML = html.abandonados || "<p style='text-align:center; padding:20px; opacity:0.5;'>Nenhum carrinho abandonado.</p>";
         document.getElementById('lista-concluidos').innerHTML = html.concluidos || "<p style='text-align:center; padding:20px; opacity:0.5;'>Histórico vazio.</p>";
         document.getElementById('lista-desistencias').innerHTML = html.desistencias || "<p style='text-align:center; padding:20px; opacity:0.5;'>Nenhuma desistência.</p>";
     }
 
-    function gerarCard(p, itens, ehReserva, dataHora, ehDesistencia, ehRascunho, ehApagar, ehPagoPendurado) {
+    function renderizarRelatorios(lista) {
+        let bonsHtml = "";
+        let mausHtml = "";
+        let nomesAdicionadosBons = new Set();
+        let nomesAdicionadosMaus = new Set();
+
+        lista.forEach(p => {
+            const avaliacao = (p.dados_proximidade || "").trim();
+            const nomeCliente = p.nome || "Sem Nome";
+            const telefoneCliente = p.telefone || "Sem Telefone";
+
+            if (avaliacao === "Bom Pagador" && !nomesAdicionadosBons.has(nomeCliente)) {
+                nomesAdicionadosBons.add(nomeCliente);
+                bonsHtml += `<tr><td><b>${nomeCliente}</b></td><td>${telefoneCliente}</td></tr>`;
+            } else if (avaliacao === "Mau Pagador" && !nomesAdicionadosMaus.has(nomeCliente)) {
+                nomesAdicionadosMaus.add(nomeCliente);
+                mausHtml += `<tr><td><b>${nomeCliente}</b></td><td>${telefoneCliente}</td></tr>`;
+            }
+        });
+
+        document.getElementById('lista-bons-pagadores').innerHTML = bonsHtml || "<tr><td colspan='2' style='opacity:0.5; text-align:center; padding:10px;'>Nenhum registrado.</td></tr>";
+        document.getElementById('lista-maus-pagadores').innerHTML = mausHtml || "<tr><td colspan='2' style='opacity:0.5; text-align:center; padding:10px;'>Nenhum registrado.</td></tr>";
+    }
+
+    function gerarCard(p, itens, ehReserva, dataHora, ehDesistencia, ehRascunho, ehApagar) {
         const linkZap = `https://wa.me/55${p.telefone?.replace(/\D/g,'')}`;
         const statusReal = (p.status || "Novo").trim();
         
@@ -216,7 +293,7 @@
             botoes = `<div class="btn-mini-group"><button class="btn-mini btn-mini-restaurar" data-id="${p.id}">Mudar para Novo</button><button class="btn-mini btn-mini-restaurar-res" data-id="${p.id}">Mudar para Reserva</button><button class="btn-mini btn-mini-apagar" data-id="${p.id}">Apagar</button></div>`;
         } else if (statusReal === 'Desistencia') {
             botoes = `<div class="btn-mini-group"><button class="btn-mini btn-mini-restaurar" data-id="${p.id}">Restaurar</button><button class="btn-mini btn-mini-apagar" data-id="${p.id}">Apagar</button></div>`;
-        } else if (statusReal === 'Finalizado' || statusReal === 'Recebido') {
+        } else if (statusReal === 'Finalizado') {
             botoes = `<div class="btn-mini-group"><button class="btn-mini btn-mini-restaurar" data-id="${p.id}">Restaurar</button></div>`;
         } else if (statusReal === 'A Pagar') {
             botoes = `<div class="btn-mini-group"><button class="btn-mini btn-mini-concluir btn-mini-marcar-pago" data-id="${p.id}">Marcar como Recebido</button><button class="btn-mini btn-mini-desistir" data-id="${p.id}">Desistência</button></div>`;
@@ -224,19 +301,17 @@
             botoes = `<div class="btn-mini-group"><button class="btn-mini btn-mini-concluir" data-id="${p.id}">Venda Concluída</button><button class="btn-mini btn-mini-apagar-status" data-id="${p.id}">A Receber</button><button class="btn-mini btn-mini-desistir" data-id="${p.id}">Desistência</button></div>`;
         }
 
-        const classeFinalizado = (statusReal === 'Finalizado' || statusReal === 'Recebido') ? 'is-finalizado' : '';
+        const classeFinalizado = statusReal === 'Finalizado' ? 'is-finalizado' : '';
         const classeRascunho = ehRascunho ? 'is-rascunho' : '';
         const classeApagar = ehApagar ? 'is-apagar' : '';
-        const classePagoPendurado = ehPagoPendurado ? 'is-pago-pendurado' : '';
 
         let badgeTexto = '✅ OK', badgeClasse = 'bg-pronta';
         if (ehDesistencia) { badgeTexto = 'OFF'; badgeClasse = 'bg-cancel'; }
         else if (ehReserva) { badgeTexto = '🕒 RES'; badgeClasse = 'bg-reserva'; }
         else if (ehRascunho) { badgeTexto = '🛒 CAR'; badgeClasse = 'bg-rascunho'; }
         else if (ehApagar) { badgeTexto = '🛑 DEVENDO'; badgeClasse = 'bg-apagar'; }
-        else if (ehPagoPendurado) { badgeTexto = '🏅 BOM PAGADOR'; badgeClasse = 'bg-pronta'; }
 
-        return `<div class="card-pedido ${ehReserva ? 'is-reserva' : ''} ${ehDesistencia ? 'is-desistencia' : ''} ${classeFinalizado} ${classeRascunho} ${classeApagar} ${classePagoPendurado}">
+        return `<div class="card-pedido ${ehReserva ? 'is-reserva' : ''} ${ehDesistencia ? 'is-desistencia' : ''} ${classeFinalizado} ${classeRascunho} ${classeApagar}">
                 <span class="badge ${badgeClasse}">${badgeTexto}</span>
                 <small style="display:block; color:#aaa; font-size: 0.6rem;">${dataHora}</small>
                 <strong style="font-size:0.9rem;">${p.nome}</strong>
