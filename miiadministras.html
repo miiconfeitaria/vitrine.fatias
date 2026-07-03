@@ -132,9 +132,7 @@
         } else if (target.classList.contains('btn-mini-apagar-status')) {
             await _supa.from('pedidos').update({ status: 'A Pagar' }).eq('id', id);
         } else if (target.classList.contains('btn-mini-marcar-pago')) {
-            // Quando clica em Marcar como Recebido, ele vira Finalizado (entra nas vendas concluídas)
-            // mas nós salvamos uma marcação na observação interna para ele continuar aparecendo aqui embaixo
-            await _supa.from('pedidos').update({ status: 'Finalizado', forma_pagamento: 'Recebido Pendurado' }).eq('id', id);
+            await _supa.from('pedidos').update({ status: 'Recebido' }).eq('id', id);
         } else if (target.classList.contains('btn-mini-apagar')) {
             if (confirm("Tem certeza que deseja excluir permanentemente este pedido?")) {
                 await _supa.from('pedidos').delete().eq('id', id);
@@ -174,15 +172,13 @@
         lista.forEach(p => {
             const dataPedido = new Date(p.created_at).toLocaleString('pt-BR');
             const status = (p.status || "").trim();
-            const eRecebidoPendurado = p.forma_pagamento === 'Recebido Pendurado';
             
-            const card = gerarCard(p, p.itens, (status === 'Reserva'), dataPedido, (status === 'Desistencia'), (status === 'Rascunho'), (status === 'A Pagar'), eRecebidoPendurado);
+            const card = gerarCard(p, p.itens, (status === 'Reserva'), dataPedido, (status === 'Desistencia'), (status === 'Rascunho'), (status === 'A Pagar'), (status === 'Recebido'));
             
-            if (status === 'Finalizado') {
-                html.concluidos += card;
-                // Se foi um pedido finalizado que veio do "A Receber", ele também entra na lista de recebidos daquela aba
-                if (eRecebidoPendurado) {
-                    html.apagarRecebidos += card;
+            if (status === 'Finalizado' || status === 'Recebido') {
+                html.concluidos += card; // Adiciona ambos na aba de Vendas Concluídas ✅
+                if (status === 'Recebido') {
+                    html.apagarRecebidos += card; // Se for recebido, entra também no histórico da aba A Receber 💸
                 }
             } else if (status === 'Desistencia') {
                 html.desistencias += card;
@@ -220,7 +216,7 @@
             botoes = `<div class="btn-mini-group"><button class="btn-mini btn-mini-restaurar" data-id="${p.id}">Mudar para Novo</button><button class="btn-mini btn-mini-restaurar-res" data-id="${p.id}">Mudar para Reserva</button><button class="btn-mini btn-mini-apagar" data-id="${p.id}">Apagar</button></div>`;
         } else if (statusReal === 'Desistencia') {
             botoes = `<div class="btn-mini-group"><button class="btn-mini btn-mini-restaurar" data-id="${p.id}">Restaurar</button><button class="btn-mini btn-mini-apagar" data-id="${p.id}">Apagar</button></div>`;
-        } else if (statusReal === 'Finalizado') {
+        } else if (statusReal === 'Finalizado' || statusReal === 'Recebido') {
             botoes = `<div class="btn-mini-group"><button class="btn-mini btn-mini-restaurar" data-id="${p.id}">Restaurar</button></div>`;
         } else if (statusReal === 'A Pagar') {
             botoes = `<div class="btn-mini-group"><button class="btn-mini btn-mini-concluir btn-mini-marcar-pago" data-id="${p.id}">Marcar como Recebido</button><button class="btn-mini btn-mini-desistir" data-id="${p.id}">Desistência</button></div>`;
@@ -228,7 +224,7 @@
             botoes = `<div class="btn-mini-group"><button class="btn-mini btn-mini-concluir" data-id="${p.id}">Venda Concluída</button><button class="btn-mini btn-mini-apagar-status" data-id="${p.id}">A Receber</button><button class="btn-mini btn-mini-desistir" data-id="${p.id}">Desistência</button></div>`;
         }
 
-        const classeFinalizado = statusReal === 'Finalizado' ? 'is-finalizado' : '';
+        const classeFinalizado = (statusReal === 'Finalizado' || statusReal === 'Recebido') ? 'is-finalizado' : '';
         const classeRascunho = ehRascunho ? 'is-rascunho' : '';
         const classeApagar = ehApagar ? 'is-apagar' : '';
         const classePagoPendurado = ehPagoPendurado ? 'is-pago-pendurado' : '';
