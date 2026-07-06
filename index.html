@@ -72,10 +72,6 @@
         
         <!-- Resumo espelhado internamente -->
         <div id="modal-resumo-lista" class="resumo-lista"></div>
-        
-        <div id="modal-secao-garantia">
-            <!-- As opções de 50% e 100% aparecem aqui automaticamente se houver reservas -->
-        </div>
 
         <div style="display: flex; gap: 10px; margin-bottom: 12px;">
             <button class="btn-seletor ativa" id="btn-entrega" onclick="setMetodo('Entrega')">Entrega (a combinar)</button>
@@ -194,7 +190,6 @@
     }
 
     async function carregarDados() {
-        // FILTRO ADICIONADO: Puxa do banco apenas fatias onde 'ocultar' NÃO seja igual a verdadeiro
         const { data } = await _supa.from('estoque').select('*').not('ocultar', 'is', true).order('nome');
         if (data) { 
             listaBolos = data.sort((a, b) => {
@@ -271,11 +266,10 @@
     }
 
     function atualizarInterface() {
-        let listaHtml = ""; let temReserva = false; let temItens = false;
+        let listaHtml = ""; let temItens = false;
         listaBolos.forEach((b, i) => {
             if(meuCarrinho[i] > 0) {
                 temItens = true;
-                if((b.quantidade || 0) <= 0) temReserva = true;
                 
                 let selectCaldaEl = document.getElementById(`calda-${i}`);
                 let caldaSelecionada = selectCaldaEl ? selectCaldaEl.value : "Selecionar Calda";
@@ -291,14 +285,6 @@
             }
         });
 
-        const htmlGarantia = temReserva ? `
-            <div style="background: #fff4f4; padding: 15px; border-radius: 12px; margin-bottom: 15px; border: 1px solid #ffcccc;">
-                <p style="font-size: 0.8rem; font-weight: bold; margin-bottom: 10px;">🛡️ Garantia de Reserva:</p>
-                <label><input type="radio" name="garantia" value="0.5" checked onchange="calcularTotalApenas()"> 50% Entrada</label>
-                <label><input type="radio" name="garantia" value="1.0" onchange="calcularTotalApenas()"> 100% Total</label>
-            </div>` : '';
-
-        document.getElementById('modal-secao-garantia').innerHTML = htmlGarantia;
         document.getElementById('resumo-lista').innerHTML = temItens ? listaHtml : "Nenhuma fatia selecionada.";
         document.getElementById('modal-resumo-lista').innerHTML = temItens ? listaHtml : "Nenhuma fatia selecionada.";
         calcularTotalApenas();
@@ -306,28 +292,15 @@
 
     function calcularTotalApenas() {
         let totalProd = 0;
-        let possuiReserva = false;
 
         listaBolos.forEach((b, i) => {
             if(meuCarrinho[i] > 0) {
                 let valorItem = 18;
                 totalProd += (meuCarrinho[i] * valorItem);
-                if((b.quantidade || 0) <= 0) possuiReserva = true;
             }
         });
 
-        if(possuiReserva) {
-            const garantias = document.getElementsByName('garantia');
-            let multiplicador = 0.5;
-            for(let g of garantias) {
-                if(g.checked) {
-                    multiplicador = parseFloat(g.value);
-                    break;
-                }
-            }
-            totalProd = totalProd * multiplicador;
-        }
-
+        // Sempre exibe o valor cheio de 100%
         document.getElementById('modal-total-val').innerHTML = `R$ ${totalProd.toFixed(2)}`;
     }
 
@@ -351,7 +324,7 @@
         const nome = document.getElementById('nome-cliente').value;
         const zap = document.getElementById('whatsapp-input').value;
         
-        let pEntregaZap = "", pReservaZap = "", vTotalBase = 0, statusPedido = "Novo", possuiReserva = false;
+        let pEntregaZap = "", pReservaZap = "", vTotalBase = 0, statusPedido = "Novo";
         listaBolos.forEach((b, i) => {
             if(meuCarrinho[i] > 0) {
                 let calda = document.getElementById(`calda-${i}`).value;
@@ -363,33 +336,20 @@
                 else { 
                     pReservaZap += `🕒 [RESERVA] ${meuCarrinho[i]}x ${b.nome} (${adicionais})\n`; 
                     statusPedido = "Reserva";
-                    possuiReserva = true;
                 }
                 vTotalBase += meuCarrinho[i] * valorItem;
             }
         });
 
-        let vTotalFinal = vTotalBase;
-        let textoGarantia = "";
-        if(possuiReserva) {
-            const garantias = document.getElementsByName('garantia');
-            let multiplicador = 0.5;
-            for(let g of garantias) {
-                if(g.checked) { multiplicador = parseFloat(g.value); break; }
-            }
-            vTotalFinal = vTotalBase * multiplicador;
-            textoGarantia = multiplicador === 0.5 ? " (Valor ref. à Entrada de 50%)" : " (Valor Total de 100%)";
-        }
-
         const address = metodoEscolhido === 'Entrega' ? `${document.getElementById('rua-numero').value}, ${document.getElementById('bairro').value}` : 'Retirada';
         
         if(idRascunho) {
-            await _supa.from('pedidos').update({ nome, telefone: zap, itens: pEntregaZap + pReservaZap, valor_total: vTotalFinal, tipo_entrega: metodoEscolhido, endereco: address, status: statusPedido, metodo_pagamento: pagamentoEscolhido }).eq('id', idRascunho);
+            await _supa.from('pedidos').update({ nome, telefone: zap, itens: pEntregaZap + pReservaZap, valor_total: vTotalBase, tipo_entrega: metodoEscolhido, endereco: address, status: statusPedido, metodo_pagamento: pagamentoEscolhido }).eq('id', idRascunho);
         } else {
-            await _supa.from('pedidos').insert([{ nome, telefone: zap, itens: pEntregaZap + pReservaZap, valor_total: vTotalFinal, tipo_entrega: metodoEscolhido, endereco: address, status: statusPedido, metodo_pagamento: pagamentoEscolhido }]);
+            await _supa.from('pedidos').insert([{ nome, telefone: zap, itens: pEntregaZap + pReservaZap, valor_total: vTotalBase, tipo_entrega: metodoEscolhido, endereco: address, status: statusPedido, metodo_pagamento: pagamentoEscolhido }]);
         }
         
-        let msg = `*NOVO PEDIDO - MII CONFEITARIA*\n\n*Cliente:* ${nome}\n*Pedido:* \n${pEntregaZap}${pReservaZap}\n*Total:* R$ ${vTotalFinal.toFixed(2)}${textoGarantia}\n*Entrega:* ${metodoEscolhido}`;
+        let msg = `*NOVO PEDIDO - MII CONFEITARIA*\n\n*Cliente:* ${nome}\n*Pedido:* \n${pEntregaZap}${pReservaZap}\n*Total:* R$ ${vTotalBase.toFixed(2)}\n*Entrega:* ${metodoEscolhido}`;
         window.open(`https://wa.me/5535991441589?text=${encodeURIComponent(msg)}`, '_blank');
     }
 
