@@ -169,25 +169,27 @@
         carregarTudo();
     };
 
-    // Função de salvamento blindada contra erros de digitação de valores numéricos
     window.salvarDadosCobranca = async function(id) {
         const inputValor = document.getElementById(`val-${id}`);
         const inputData = document.getElementById(`dat-${id}`);
         
         if (inputValor && inputData) {
-            // Converte qualquer vírgula digitada pelo usuário em ponto para o Supabase aceitar
             let valorTexto = inputValor.value.replace(',', '.');
             const dataCombinada = inputData.value;
             
             const valorNumerico = parseFloat(valorTexto);
             if (!isNaN(valorNumerico)) {
-                await _supa.from('pedidos').update({ 
+                const { error } = await _supa.from('pedidos').update({ 
                     valor_total: valorNumerico,
-                    forma_pagamento: dataCombinada 
+                    observacoes: dataCombinada 
                 }).eq('id', id);
                 
-                alert("Dados salvos!");
-                await carregarTudo();
+                if (error) {
+                    alert("Erro do banco de dados: " + error.message);
+                } else {
+                    alert("Dados salvos com sucesso!");
+                    await carregarTudo();
+                }
             } else {
                 alert("Por favor, digite um valor numérico válido.");
             }
@@ -219,13 +221,13 @@
 
     document.getElementById('btn-sim-pagador').addEventListener('click', async function() {
         if (!pedidoSelecionadoId) return;
-        await _supa.from('pedidos').update({ status: 'Finalizado - Bom Pagador' }).eq('id', pedidoSelecionadoId);
+        await _supa.from('pedidos').update({ status: 'Finalizado - Bom Pagador', observacoes: '' }).eq('id', pedidoSelecionadoId);
         fecharJanelaPergunta();
     });
 
     document.getElementById('btn-nao-pagador').addEventListener('click', async function() {
         if (!pedidoSelecionadoId) return;
-        await _supa.from('pedidos').update({ status: 'Finalizado - Mau Pagador' }).eq('id', pedidoSelecionadoId);
+        await _supa.from('pedidos').update({ status: 'Finalizado - Mau Pagador', observacoes: '' }).eq('id', pedidoSelecionadoId);
         fecharJanelaPergunta();
     });
 
@@ -341,11 +343,10 @@
         let tagDataFixa = '';
         
         if (statusReal === 'A Pagar') {
-            const dataSalva = p.forma_pagamento || '';
+            const dataSalva = p.observacoes || '';
             if (dataSalva && dataSalva !== 'Bom Pagador' && dataSalva !== 'Mau Pagador') {
                 tagDataFixa = `<div class="tag-data-combinada">📅 Paga dia: ${dataSalva}</div>`;
             }
-            // Campo mudado para "text" para que o navegador não barre a digitação de vírgulas
             exibicaoValor = `Total: R$ <input type="text" id="val-${p.id}" class="input-valor-edicao" value="${Number(p.valor_total).toFixed(2)}"> | Alterar Dia: <input type="text" id="dat-${p.id}" class="input-data-combinada" placeholder="Ex: 10/11" value="${dataSalva}"> <button class="btn-mini btn-mini-salvar-valor" onclick="salvarDadosCobranca('${p.id}')" style="padding: 2px 6px; font-size: 0.55rem; vertical-align: middle;">💾</button>`;
         }
 
@@ -369,6 +370,7 @@
         if(btn) btn.classList.add('active');
     };
 
+    // Estrutura de renderização clássica e limpa do Estoque
     function renderizarEstoque(e) {
         document.getElementById('corpo-estoque').innerHTML = e.map(i => `
             <tr class="linha-est" data-id="${i.id}">
@@ -385,7 +387,7 @@
                 dados_proximidade: l.querySelector('.data').value 
             }).eq('id', l.dataset.id);
         }
-        alert("Estoque updated!"); 
+        alert("Estoque atualizado!"); 
         carregarTudo();
     };
 
