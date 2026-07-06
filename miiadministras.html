@@ -119,7 +119,7 @@
     <div style="background:white; padding:15px; border-radius:15px;">
         <button onclick="salvarEstoque()" style="background:var(--verde); color:white; width:100%; padding:10px; border:none; border-radius:10px; font-weight:bold; margin-bottom:15px; cursor:pointer;">💾 Atualizar Estoque</button>
         <table>
-            <thead><tr><th>Sabor</th><th>Qtd</th><th>Fornada</th></tr></thead>
+            <thead><tr><th>Sabor</th><th>Qtd</th><th>Fornada</th><th>Ocultar Vendas</th></tr></thead>
             <tbody id="corpo-estoque"></tbody>
         </table>
     </div>
@@ -170,7 +170,6 @@
         carregarTudo();
     };
 
-    // FUNÇÃO 1: Salva INDEPENDENTE apenas o valor numérico total do pedido
     window.salvarApenasValor = async function(id) {
         const inputValor = document.getElementById(`val-${id}`);
         if (inputValor) {
@@ -181,7 +180,7 @@
                 if (error) {
                     alert("Erro ao salvar valor: " + error.message);
                 } else {
-                    alert("Valor atualizado!");
+                    alert("Valor updated!");
                     await carregarTudo();
                 }
             } else {
@@ -190,14 +189,13 @@
         }
     };
 
-    // FUNÇÃO 2: Salva INDEPENDENTE apenas a data combinada na NOVA coluna criada no banco
     window.salvarApenasData = async function(id) {
         const inputData = document.getElementById(`dat-${id}`);
         if (inputData) {
             const dataCombinada = inputData.value;
             const { error } = await _supa.from('pedidos').update({ data_pagamento: dataCombinada }).eq('id', id);
             if (error) {
-                alert("Erro ao salvar data (Certifique-se de ter criado a coluna data_pagamento): " + error.message);
+                alert("Erro ao salvar data: " + error.message);
             } else {
                 alert("Data combinada salva!");
                 await carregarTudo();
@@ -219,7 +217,11 @@
         } else if (target.classList.contains('btn-mini-restaurar-res')) {
             await _supa.from('pedidos').update({ status: 'Reserva' }).eq('id', id);
         } else if (target.classList.contains('btn-mini-apagar-status')) {
-            await _supa.from('pedidos').update({ status: 'A Pagar' }).eq('id', id);
+            const diaEscolhido = prompt("Qual o dia combinado para o pagamento? (Ex: 10/11 ou Sexta)");
+            await _supa.from('pedidos').update({ 
+                status: 'A Pagar',
+                data_pagamento: diaEscolhido ? diaEscolhido.trim() : ''
+            }).eq('id', id);
         } else if (target.classList.contains('btn-mini-apagar')) {
             if (confirm("Tem certeza que deseja excluir permanentemente este pedido?")) {
                 await _supa.from('pedidos').delete().eq('id', id);
@@ -352,12 +354,10 @@
         let tagDataFixa = '';
         
         if (statusReal === 'A Pagar') {
-            // Puxa o dado direto da nova coluna dedicada 'data_pagamento'
             const dataSalva = p.data_pagamento || '';
             if (dataSalva) {
                 tagDataFixa = `<div class="tag-data-combinada">📅 Paga dia: ${dataSalva}</div>`;
             }
-            // Interface com botões individuais para salvar cada campo separadamente
             exibicaoValor = `
                 <div style="margin-top: 5px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                     <span>Total: R$ <input type="text" id="val-${p.id}" class="input-valor-edicao" value="${Number(p.valor_total).toFixed(2)}"> <button class="btn-mini btn-mini-salvar-valor" onclick="salvarApenasValor('${p.id}')" title="Salvar Valor">💾</button></span>
@@ -385,20 +385,24 @@
         if(btn) btn.classList.add('active');
     };
 
+    // Adicionada a coluna de checkbox que puxa o status de 'ocultar' do banco
     function renderizarEstoque(e) {
         document.getElementById('corpo-estoque').innerHTML = e.map(i => `
             <tr class="linha-est" data-id="${i.id}">
                 <td>${i.nome}</td>
                 <td><input type="number" class="qtd" value="${i.quantidade || 0}" style="width:40px" onfocus="editandoEstoque=true" onblur="editandoEstoque=false"></td>
                 <td><input type="text" class="data" value="${i.dados_proximidade || ''}" style="width:80px" onfocus="editandoEstoque=true" onblur="editandoEstoque=false"></td>
+                <td style="text-align: center;"><input type="checkbox" class="ocultar-check" ${i.ocultar ? 'checked' : ''} onfocus="editandoEstoque=true" onblur="editandoEstoque=false"></td>
             </tr>`).join('');
     }
 
+    // Atualizado para salvar a propriedade 'ocultar' (verdadeiro ou falso) de volta ao Supabase
     window.salvarEstoque = async function() {
         for (let l of document.querySelectorAll('.linha-est')) {
             await _supa.from('estoque').update({ 
                 quantidade: l.querySelector('.qtd').value, 
-                dados_proximidade: l.querySelector('.data').value 
+                dados_proximidade: l.querySelector('.data').value,
+                ocultar: l.querySelector('.ocultar-check').checked
             }).eq('id', l.dataset.id);
         }
         alert("Estoque atualizado!"); 
