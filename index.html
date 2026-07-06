@@ -30,6 +30,13 @@
         .controles { display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 10px; }
         .btn-circular { background: var(--rosa-botao); color: white; border: none; border-radius: 50%; width: 28px; height: 28px; cursor: pointer; font-weight: bold; }
         .select-calda { width: 85%; padding: 6px; border-radius: 8px; border: 1px solid #eee; font-size: 0.7rem; color: #666; background: #fafafa; margin-bottom: 6px; }
+        
+        /* Estilos originais e corrigidos da galeria de bastidores */
+        .grid-bastidores { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 15px; }
+        .item-bastidor { background: #eee; border-radius: 15px; overflow: hidden; height: 300px; border: 1px solid #ddd; cursor: pointer; display: none; }
+        .item-bastidor img { width: 100%; height: 100%; object-fit: cover; transition: 0.3s; }
+        .item-bastidor:hover img { transform: scale(1.05); }
+        
         .checkout-box { background: white; border-radius: 15px; padding: 25px; max-width: 700px; margin: 20px auto; box-shadow: 0 5px 20px rgba(0,0,0,0.05); }
         .resumo-lista { font-size: 0.85rem; margin-bottom: 20px; border-left: 3px solid var(--rosa-topo); padding-left: 15px; color: #666; text-align: left; }
         .item-resumo-linha { border-bottom: 1px dashed #eee; padding: 10px 0; margin-bottom: 10px; }
