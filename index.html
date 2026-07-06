@@ -139,7 +139,7 @@
     let pagamentoEscolhido = 'Pix';
     let telaAtual = 'venda';
     let idRascunho = null;
-    let caldasHabilitadas = true; // Controla se o seletor de caldas deve ser exibido
+    let caldasHabilitadas = true;
 
     async function salvarRascunho() {
         const nome = document.getElementById('nome-cliente').value;
@@ -153,7 +153,7 @@
                 if (caldasHabilitadas) {
                     const elCalda = document.getElementById(`calda-${i}`);
                     calda = elCalda ? elCalda.value : "Sem calda";
-                    if (calda === "Selecionar Calda" || calda === "Selecionar Calda ( Grátis )" || calda === "Sem calda") calda = "Sem calda";
+                    if (calda === "Selecionar Calda" || calda === "Sem calda") calda = "Sem calda";
                 }
                 
                 let adicionalCalda = (caldasHabilitadas && (calda === "Chocolate" || calda === "Ninho")) ? 1.50 : 0;
@@ -187,11 +187,9 @@
     async function carregarDados() {
         const { data } = await _supa.from('estoque').select('*').order('nome');
         if (data) { 
-            // 1. Verifica se o item de controle de calda está oculto no banco
             const configuracaoCalda = data.find(item => item.nome === "Adicional de Calda");
             caldasHabilitadas = !(configuracaoCalda && configuracaoCalda.ocultar === true);
 
-            // 2. Filtra a lista removendo o controle de calda e os bolos ocultos para exibir na vitrine
             listaBolos = data.filter(item => item.nome !== "Adicional de Calda" && item.ocultar !== true).sort((a, b) => {
                 const estoqueA = (a.quantidade || 0) > 0;
                 const estoqueB = (b.quantidade || 0) > 0;
@@ -220,13 +218,12 @@
             const infoTexto = b.dados_proximidade || 'Em breve';
             const ehEmBreve = !temEstoque && (infoTexto.toLowerCase().includes('breve') || infoTexto === '');
             
-            // Renderiza o select apenas se as caldas estiverem marcadas como "Exibir na Loja"
             const selectCaldaHtml = caldasHabilitadas ? `
                 <select id="calda-${i}" class="select-calda" onchange="calcularTotalApenas()">
-                    <option value="Selecionar Calda" disabled selected hidden>Selecionar Calda ( Grátis )</option>
+                    <option value="Selecionar Calda" disabled selected hidden>Selecionar Calda</option>
                     <option value="Sem calda">Sem calda</option>
-                    <option value="Chocolate">Chocolate</option>
-                    <option value="Ninho">Ninho</option>
+                    <option value="Chocolate">Chocolate (+ R$ 1,50)</option>
+                    <option value="Ninho">Ninho (+ R$ 1,50)</option>
                 </select>` : '';
 
             return `
@@ -280,7 +277,7 @@
                 if (caldasHabilitadas) {
                     let selectCaldaEl = document.getElementById(`calda-${i}`);
                     caldaSelecionada = selectCaldaEl ? selectCaldaEl.value : "Selecionar Calda";
-                    if (caldaSelecionada === "Selecionar Calda" || caldaSelecionada === "Selecionar Calda ( Grátis )") {
+                    if (caldaSelecionada === "Selecionar Calda") {
                         caldaSelecionada = "Não selecionada";
                     }
                     adicionalCalda = (caldaSelecionada === "Chocolate" || caldaSelecionada === "Ninho") ? 1.50 : 0;
@@ -351,7 +348,7 @@
 
                 if (caldasHabilitadas) {
                     calda = document.getElementById(`calda-${i}`).value;
-                    if (calda === "Selecionar Calda" || calda === "Selecionar Calda ( Grátis )" || calda === "Sem calda") calda = "Sem calda";
+                    if (calda === "Selecionar Calda" || calda === "Sem calda") calda = "Sem calda";
                     adicionalCalda = (calda === "Chocolate" || calda === "Ninho") ? 1.50 : 0;
                 }
                 
