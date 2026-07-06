@@ -76,7 +76,6 @@
         .input-valor-edicao { width: 65px; border: 1px solid #ddd; padding: 3px; border-radius: 5px; font-family: 'Montserrat', sans-serif; font-weight: bold; color: var(--marrom); font-size: 0.75rem; }
         .input-data-combinada { width: 85px; border: 1px solid #ddd; padding: 3px; border-radius: 5px; font-family: 'Montserrat', sans-serif; font-size: 0.7rem; color: #555; margin-left: 5px; }
         
-        /* Tag para mostrar a data salva de forma elegante no card */
         .tag-data-combinada { display: inline-block; background-color: #ebf5ff; color: #0066cc; padding: 4px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: bold; margin-bottom: 8px; border: 1px solid #cce3ff; }
     </style>
 </head>
@@ -170,6 +169,27 @@
         carregarTudo();
     };
 
+    // Nova função direta de salvamento para evitar erros de leitura dos inputs
+    window.salvarDadosCobranca = async function(id) {
+        const inputValor = document.getElementById(`val-${id}`);
+        const inputData = document.getElementById(`dat-${id}`);
+        
+        if (inputValor && inputData) {
+            const novoValor = inputValor.value;
+            const dataCombinada = inputData.value;
+            
+            if (novoValor && !isNaN(novoValor)) {
+                await _supa.from('pedidos').update({ 
+                    valor_total: Number(novoValor),
+                    forma_pagamento: dataCombinada 
+                }).eq('id', id);
+                
+                alert("Dados de cobrança salvos com sucesso!");
+                await carregarTudo();
+            }
+        }
+    };
+
     document.addEventListener('click', async function(e) {
         const target = e.target;
         const id = target.getAttribute('data-id');
@@ -185,17 +205,6 @@
             await _supa.from('pedidos').update({ status: 'Reserva' }).eq('id', id);
         } else if (target.classList.contains('btn-mini-apagar-status')) {
             await _supa.from('pedidos').update({ status: 'A Pagar' }).eq('id', id);
-        } else if (target.classList.contains('btn-mini-salvar-valor')) {
-            const card = target.closest('.card-pedido');
-            const novoValor = card.querySelector('.input-valor-edicao').value;
-            const dataCombinada = card.querySelector('.input-data-combinada').value;
-            if (novoValor && !isNaN(novoValor)) {
-                await _supa.from('pedidos').update({ 
-                    valor_total: Number(novoValor),
-                    forma_pagamento: dataCombinada 
-                }).eq('id', id);
-                alert("Dados atualizados com sucesso!");
-            }
         } else if (target.classList.contains('btn-mini-apagar')) {
             if (confirm("Tem certeza que deseja excluir permanentemente este pedido?")) {
                 await _supa.from('pedidos').delete().eq('id', id);
@@ -324,16 +333,16 @@
         else if (ehRascunho) { badgeTexto = '🛒 CAR'; badgeClasse = 'bg-rascunho'; }
         else if (ehApagar) { badgeTexto = '🛑 DEVENDO'; badgeClasse = 'bg-apagar'; }
 
-        // Monta os campos de edição e exibe a Tag fixa do combinado caso já exista um valor salvo
         let exibicaoValor = `Total: <b>R$ ${Number(p.valor_total).toFixed(2)}</b>`;
         let tagDataFixa = '';
         
         if (statusReal === 'A Pagar') {
             const dataSalva = p.forma_pagamento || '';
-            if (dataSalva) {
+            if (dataSalva && dataSalva !== 'Bom Pagador' && dataSalva !== 'Mau Pagador') {
                 tagDataFixa = `<div class="tag-data-combinada">📅 Paga dia: ${dataSalva}</div>`;
             }
-            exibicaoValor = `Total: R$ <input type="number" step="0.01" class="input-valor-edicao" value="${Number(p.valor_total).toFixed(2)}"> | Alterar Dia: <input type="text" class="input-data-combinada" placeholder="Ex: 10/11" value="${dataSalva}"> <button class="btn-mini btn-mini-salvar-valor" data-id="${p.id}" style="padding: 2px 6px; font-size: 0.55rem; vertical-align: middle;">💾</button>`;
+            // ID único injetado nos inputs baseado no ID do pedido para o script nunca confundir as caixas de texto
+            exibicaoValor = `Total: R$ <input type="number" step="0.01" id="val-${p.id}" class="input-valor-edicao" value="${Number(p.valor_total).toFixed(2)}"> | Alterar Dia: <input type="text" id="dat-${p.id}" class="input-data-combinada" placeholder="Ex: 10/11" value="${dataSalva}"> <button class="btn-mini btn-mini-salvar-valor" onclick="salvarDadosCobranca('${p.id}')" style="padding: 2px 6px; font-size: 0.55rem; vertical-align: middle;">💾</button>`;
         }
 
         return `<div class="card-pedido ${ehReserva ? 'is-reserva' : ''} ${ehDesistencia ? 'is-desistencia' : ''} ${classeFinalizado} ${classeRascunho} ${classeApagar}">
