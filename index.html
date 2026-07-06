@@ -31,7 +31,6 @@
         .btn-circular { background: var(--rosa-botao); color: white; border: none; border-radius: 50%; width: 28px; height: 28px; cursor: pointer; font-weight: bold; }
         .select-calda { width: 85%; padding: 6px; border-radius: 8px; border: 1px solid #eee; font-size: 0.7rem; color: #666; background: #fafafa; margin-bottom: 6px; }
         
-        /* Estilos originais e corrigidos da galeria de bastidores */
         .grid-bastidores { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 15px; }
         .item-bastidor { background: #eee; border-radius: 15px; overflow: hidden; height: 300px; border: 1px solid #ddd; cursor: pointer; display: none; }
         .item-bastidor img { width: 100%; height: 100%; object-fit: cover; transition: 0.3s; }
@@ -123,7 +122,8 @@
             <h3 style="text-align: center; text-transform: uppercase; font-size: 1.1rem;">Dados para o Pedido</h3>
             
             <input type="text" id="nome-cliente" class="input-padrao" placeholder="Seu Nome Completo">
-            <input type="tel" id="whatsapp-input" class="input-padrao" placeholder="WhatsApp (DDD + Número)" maxlength="11">
+            <!-- Adicionado o evento oninput para aplicar a máscara automaticamente -->
+            <input type="tel" id="whatsapp-input" class="input-padrao" placeholder="(35) 99999-9999" maxlength="15" oninput="mascaraTelefone(this)">
             
             <button class="btn-finalizar" style="margin-top: 10px;" onclick="abrirVisualizacaoPedido()">Visualizar Pedido</button>
         </div>
@@ -147,6 +147,22 @@
     let telaAtual = 'venda';
     let idRascunho = null;
     let caldasHabilitadas = true;
+
+    // Função que formata o campo enquanto o cliente digita
+    function mascaraTelefone(input) {
+        let v = input.value.replace(/\D/g, ""); // Remove tudo que não é número
+        if (v.length > 11) v = v.slice(0, 11);  // Limita a 11 dígitos
+        
+        if (v.length > 6) {
+            input.value = `(${v.slice(0, 2)}) ${v.slice(2, 7)}-${v.slice(7)}`;
+        } else if (v.length > 2) {
+            input.value = `(${v.slice(0, 2)}) ${v.slice(2)}`;
+        } else if (v.length > 0) {
+            input.value = `(${v}`;
+        } else {
+            input.value = "";
+        }
+    }
 
     async function salvarRascunho() {
         const nome = document.getElementById('nome-cliente').value;
@@ -328,6 +344,12 @@
         const nome = document.getElementById('nome-cliente').value;
         const zap = document.getElementById('whatsapp-input').value;
         if(!nome || !zap) return alert("Por favor, preencha seu nome e WhatsApp antes de visualizar.");
+        
+        // Verifica se o telefone preenchido está completo com o formato correto de 11 dígitos
+        const numerosApenas = zap.replace(/\D/g, "");
+        if (numerosApenas.length < 11) {
+            return alert("Por favor, digite seu número de WhatsApp completo com o DDD. Exemplo: (35) 99999-9999");
+        }
         
         let temItens = false;
         listaBolos.forEach((_, i) => { if(meuCarrinho[i] > 0) temItens = true; });
