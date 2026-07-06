@@ -14,7 +14,6 @@
         header h1 { margin: 0; font-family: 'Great Vibes', cursive; font-size: 3.5rem; font-weight: normal; }
         .subtitulo { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 3px; margin-top: 5px; opacity: 0.9; }
         .preco-tag { font-weight: 600; font-size: 1rem; display: block; margin: 10px auto; background: rgba(0,0,0,0.1); padding: 5px 20px; border-radius: 20px; width: fit-content; }
-        .btn-nav { background: white; color: var(--rosa-topo); border: none; padding: 10px 20px; border-radius: 20px; font-weight: 600; font-size: 0.7rem; text-transform: uppercase; cursor: pointer; box-shadow: 0 4px 8px rgba(0,0,0,0.1); transition: 0.3s; display: inline-flex; align-items: center; gap: 8px; }
         .container { max-width: 1000px; margin: auto; padding: 20px; }
         .tela { display: none; }
         .tela.ativa { display: block; animation: fadeIn 0.4s ease-in-out; }
@@ -30,10 +29,6 @@
         .controles { display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 10px; }
         .btn-circular { background: var(--rosa-botao); color: white; border: none; border-radius: 50%; width: 28px; height: 28px; cursor: pointer; font-weight: bold; }
         .select-calda { width: 85%; padding: 6px; border-radius: 8px; border: 1px solid #eee; font-size: 0.7rem; color: #666; background: #fafafa; margin-bottom: 6px; }
-        .grid-bastidores { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 15px; }
-        .item-bastidor { background: #eee; border-radius: 15px; overflow: hidden; height: 300px; border: 1px solid #ddd; cursor: pointer; display: none; }
-        .item-bastidor img { width: 100%; height: 100%; object-fit: cover; transition: 0.3s; }
-        .item-bastidor:hover img { transform: scale(1.05); }
         .checkout-box { background: white; border-radius: 15px; padding: 25px; max-width: 700px; margin: 20px auto; box-shadow: 0 5px 20px rgba(0,0,0,0.05); }
         .resumo-lista { font-size: 0.85rem; margin-bottom: 20px; border-left: 3px solid var(--rosa-topo); padding-left: 15px; color: #666; text-align: left; }
         .item-resumo-linha { border-bottom: 1px dashed #eee; padding: 10px 0; margin-bottom: 10px; }
@@ -43,13 +38,6 @@
         .btn-seletor.ativa { border-color: var(--rosa-topo); color: var(--rosa-topo); background: #fff0f5; }
         .total-display { text-align: center; font-weight: bold; font-size: 1.4rem; margin: 20px 0; border-top: 1px dashed #eee; padding-top: 15px; }
         .btn-finalizar { background: var(--marrom); color: white; border: none; padding: 18px; border-radius: 12px; width: 100%; font-weight: bold; text-transform: uppercase; cursor: pointer; font-size: 1rem; }
-        #modal-zoom { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); align-items: center; justify-content: center; padding: 20px; }
-        .modal-content { position: relative; max-width: 100%; max-height: 90vh; }
-        .modal-content img { max-width: 100%; max-height: 90vh; border-radius: 10px; }
-        .close-zoom { position: absolute; top: -45px; right: 0; color: white; font-size: 35px; cursor: pointer; }
-        .btn-voltar-loja { display: block; margin: 40px auto; background: var(--marrom); color: white; border: none; padding: 15px 35px; border-radius: 30px; font-weight: bold; text-transform: uppercase; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
-        
-        /* Estilos da Janela de Visualização do Pedido */
         #modal-pedido { display: none; position: fixed; z-index: 10000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; padding: 15px; box-sizing: border-box; }
         .modal-pedido-content { background: white; border-radius: 15px; padding: 20px; max-width: 600px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 5px 25px rgba(0,0,0,0.2); position: relative; }
         .close-pedido { position: absolute; top: 10px; right: 15px; color: var(--marrom); font-size: 25px; cursor: pointer; font-weight: bold; }
@@ -57,20 +45,10 @@
 </head>
 <body>
 
-<div id="modal-zoom" onclick="fecharZoom()">
-    <div class="modal-content" onclick="event.stopPropagation()">
-        <span class="close-zoom" onclick="fecharZoom()">&times;</span>
-        <div id="render-zoom"></div>
-    </div>
-</div>
-
-<!-- Janela de Visualização do Pedido / Checkout Final -->
 <div id="modal-pedido" onclick="fecharPedido()">
     <div class="modal-pedido-content" onclick="event.stopPropagation()">
         <span class="close-pedido" onclick="fecharPedido()">&times;</span>
         <h3 style="text-align: center; text-transform: uppercase; font-size: 1.1rem; margin-top: 10px;">Visualização do Pedido</h3>
-        
-        <!-- Resumo espelhado internamente -->
         <div id="modal-resumo-lista" class="resumo-lista"></div>
 
         <div style="display: flex; gap: 10px; margin-bottom: 12px;">
@@ -105,7 +83,7 @@
 <header>
     <h1>Mii Confeitaria</h1>
     <div class="subtitulo">Fatias Premium</div>
-    <span class="preco-tag">Fatia: R$ 18,00 | Calda adicional: R$ 1,50</span>
+    <span id="vitrine-preco-tag" class="preco-tag">Fatia: R$ 18,00</span>
 </header>
 
 <div class="container">
@@ -124,12 +102,6 @@
             <button class="btn-finalizar" style="margin-top: 10px;" onclick="abrirVisualizacaoPedido()">Visualizar Pedido</button>
         </div>
     </div>
-
-    <div id="tela-bastidores" class="tela">
-        <h2 style="text-align:center; font-family:'Great Vibes'; font-size: 3.5rem; color: var(--rosa-topo); margin-bottom: 30px;">Nossos Bastidores ✨</h2>
-        <div id="galeria-bastidores" class="grid-bastidores"></div>
-        <button class="btn-voltar-loja" onclick="alternarTela()">🍰 Voltar para a Loja</button>
-    </div>
 </div>
 
 <script>
@@ -141,6 +113,7 @@
     let metodoEscolhido = 'Entrega';
     let pagamentoEscolhido = 'Pix';
     let idRascunho = null;
+    let caldasHabilitadas = true; // Controla se o bloco de calda vai aparecer
 
     async function salvarRascunho() {
         const nome = document.getElementById('nome-cliente').value;
@@ -150,29 +123,27 @@
         let pEntregaZap = "", pReservaZap = "", vTotal = 0;
         listaBolos.forEach((b, i) => {
             if(meuCarrinho[i] > 0) {
-                let calda = document.getElementById(`calda-${i}`).value;
-                if (calda === "Selecionar Calda" || calda === "Sem calda") calda = "Sem calda";
+                let calda = "Sem calda";
+                let precoCalda = 0;
+
+                if (caldasHabilitadas) {
+                    const elCalda = document.getElementById(`calda-${i}`);
+                    calda = elCalda ? elCalda.value : "Sem calda";
+                    if (calda === "Selecionar Calda") calda = "Sem calda";
+                    precoCalda = (calda === "Chocolate" || calda === "Ninho") ? 1.50 : 0;
+                }
                 
-                let precoCalda = (calda === "Chocolate" || calda === "Ninho") ? 1.50 : 0;
                 let precoItemTotal = 18 + precoCalda;
-                
                 const ehReserva = (b.quantidade || 0) <= 0;
-                if(!ehReserva) pEntregaZap += `✅ ${meuCarrinho[i]}x ${b.nome} (Calda: ${calda})\n`;
-                else pReservaZap += `🕒 [RESERVA] ${meuCarrinho[i]}x ${b.nome} (Calda: ${calda})\n`;
+                
+                if(!ehReserva) pEntregaZap += `✅ ${meuCarrinho[i]}x ${b.nome}${caldasHabilitadas ? ` (Calda: ${calda})` : ''}\n`;
+                else pReservaZap += `🕒 [RESERVA] ${meuCarrinho[i]}x ${b.nome}${caldasHabilitadas ? ` (Calda: ${calda})` : ''}\n`;
                 
                 vTotal += meuCarrinho[i] * precoItemTotal;
             }
         });
 
-        const dados = { 
-            nome, 
-            telefone: zap, 
-            status: 'Rascunho',
-            itens: pEntregaZap + pReservaZap,
-            valor_total: vTotal,
-            tipo_entrega: metodoEscolhido,
-            metodo_pagamento: pagamentoEscolhido
-        };
+        const dados = { nome, telefone: zap, status: 'Rascunho', itens: pEntregaZap + pReservaZap, valor_total: vTotal, tipo_entrega: metodoEscolhido, metodo_pagamento: pagamentoEscolhido };
 
         if (idRascunho) { 
             await _supa.from('pedidos').update(dados).eq('id', idRascunho); 
@@ -183,9 +154,23 @@
     }
 
     async function carregarDados() {
-        const { data } = await _supa.from('estoque').select('*').not('ocultar', 'is', true).order('nome');
-        if (data) { 
-            listaBolos = data.sort((a, b) => {
+        // Busca TODOS os itens incluindo as configurações da calda
+        const { data } = await _supa.from('estoque').select('*').order('nome');
+        if (data) {
+            // Verifica se a linha de controle de calda está oculta
+            const configuracaoCalda = data.find(item => item.nome === "Adicional de Calda");
+            if (configuracaoCalda && configuracaoCalda.ocultar === true) {
+                caldasHabilitadas = false;
+                document.getElementById('vitrine-preco-tag').innerText = "Fatia: R$ 18,00";
+            } else {
+                caldasHabilitadas = true;
+                document.getElementById('vitrine-preco-tag').innerText = "Fatia: R$ 18,00 | Calda adicional: R$ 1,50";
+            }
+
+            // Filtra os bolos tradicionais da vitrine (removendo o item de controle de calda e itens ocultos)
+            listaBolos = data.filter(item => item.nome !== "Adicional de Calda" && item.ocultar !== true);
+            
+            listaBolos.sort((a, b) => {
                 const estoqueA = (a.quantidade || 0) > 0;
                 const estoqueB = (b.quantidade || 0) > 0;
                 if (estoqueA && !estoqueB) return -1;
@@ -203,6 +188,16 @@
             const urlFoto = b.imagem_nome ? RAW_URL + b.imagem_nome : 'https://via.placeholder.com/300x300?text=Mii+Confeitaria';
             const infoTexto = b.dados_proximidade || 'Em breve';
             const ehEmBreve = !temEstoque && (infoTexto.toLowerCase().includes('breve') || infoTexto === '');
+            
+            // Renderiza o seletor de calda apenas se ela não estiver oculta no estoque
+            const htmlSelectCalda = caldasHabilitadas ? `
+                <select id="calda-${i}" class="select-calda" onchange="atualizarInterface()">
+                    <option value="Selecionar Calda" disabled selected hidden>Escolha a Calda</option>
+                    <option value="Sem calda">Sem calda</option>
+                    <option value="Chocolate">Chocolate (+ R$ 1,50)</option>
+                    <option value="Ninho">Ninho (+ R$ 1,50)</option>
+                </select>` : '';
+
             return `
             <div class="card-bolo">
                 <div class="img-container">
@@ -217,12 +212,7 @@
                     <span id="qtd-${i}" style="font-weight:bold;">${meuCarrinho[i] || 0}</span>
                     <button class="btn-circular" onclick="ajustar(${i},1)">+</button>
                 </div>
-                <select id="calda-${i}" class="select-calda" onchange="atualizarInterface()">
-                    <option value="Selecionar Calda" disabled selected hidden>Escolha a Calda</option>
-                    <option value="Sem calda">Sem calda</option>
-                    <option value="Chocolate">Chocolate (+ R$ 1,50)</option>
-                    <option value="Ninho">Ninho (+ R$ 1,50)</option>
-                </select>
+                ${htmlSelectCalda}
             </div>`;
         }).join('');
     }
@@ -253,12 +243,16 @@
         listaBolos.forEach((b, i) => {
             if(meuCarrinho[i] > 0) {
                 temItens = true;
-                
-                let selectCaldaEl = document.getElementById(`calda-${i}`);
-                let caldaSelecionada = selectCaldaEl ? selectCaldaEl.value : "Selecionar Calda";
-                if (caldaSelecionada === "Selecionar Calda") caldaSelecionada = "Sem calda";
+                let caldaSelecionada = "Sem calda";
+                let adicionalCalda = 0;
 
-                let adicionalCalda = (caldaSelecionada === "Chocolate" || caldaSelecionada === "Ninho") ? 1.50 : 0;
+                if (caldasHabilitadas) {
+                    let selectCaldaEl = document.getElementById(`calda-${i}`);
+                    caldaSelecionada = selectCaldaEl ? selectCaldaEl.value : "Selecionar Calda";
+                    if (caldaSelecionada === "Selecionar Calda") caldaSelecionada = "Sem calda";
+                    adicionalCalda = (caldaSelecionada === "Chocolate" || caldaSelecionada === "Ninho") ? 1.50 : 0;
+                }
+
                 let valorUnitarioFinal = 18.00 + adicionalCalda;
                 let valorLinhaTotal = meuCarrinho[i] * valorUnitarioFinal;
 
@@ -268,9 +262,10 @@
                         <span>• ${meuCarrinho[i]}x ${b.nome}</span>
                         <span>R$ ${valorLinhaTotal.toFixed(2)}</span>
                     </div>
+                    ${caldasHabilitadas ? `
                     <div style="font-size: 0.7rem; color: #888; margin-top: 2px; padding-left: 10px;">
                         Calda: <b>${caldaSelecionada}</b> ${adicionalCalda > 0 ? '(+R$ 1,50 cada)' : '(Sem custo extra)'}
-                    </div>
+                    </div>` : ''}
                 </div>`;
             }
         });
@@ -284,10 +279,12 @@
         let totalProd = 0;
         listaBolos.forEach((b, i) => {
             if(meuCarrinho[i] > 0) {
-                let selectCaldaEl = document.getElementById(`calda-${i}`);
-                let caldaSelecionada = selectCaldaEl ? selectCaldaEl.value : "Sem calda";
-                
-                let adicionalCalda = (caldaSelecionada === "Chocolate" || caldaSelecionada === "Ninho") ? 1.50 : 0;
+                let adicionalCalda = 0;
+                if (caldasHabilitadas) {
+                    let selectCaldaEl = document.getElementById(`calda-${i}`);
+                    let caldaSelecionada = selectCaldaEl ? selectCaldaEl.value : "Sem calda";
+                    adicionalCalda = (caldaSelecionada === "Chocolate" || caldaSelecionada === "Ninho") ? 1.50 : 0;
+                }
                 totalProd += (meuCarrinho[i] * (18.00 + adicionalCalda));
             }
         });
@@ -309,23 +306,28 @@
 
     function fecharPedido() { document.getElementById('modal-pedido').style.display = 'none'; }
 
-    async function generarWhatsApp() {
+    async function gerarWhatsApp() {
         const nome = document.getElementById('nome-cliente').value;
         const zap = document.getElementById('whatsapp-input').value;
         
         let pEntregaZap = "", pReservaZap = "", vTotalBase = 0, statusPedido = "Novo";
         listaBolos.forEach((b, i) => {
             if(meuCarrinho[i] > 0) {
-                let calda = document.getElementById(`calda-${i}`).value;
-                if (calda === "Selecionar Calda" || calda === "Sem calda") calda = "Sem calda";
-                
-                let adicionalCalda = (calda === "Chocolate" || calda === "Ninho") ? 1.50 : 0;
+                let calda = "Sem calda";
+                let adicionalCalda = 0;
+
+                if (caldasHabilitadas) {
+                    calda = document.getElementById(`calda-${i}`).value;
+                    if (calda === "Selecionar Calda" || calda === "Sem calda") calda = "Sem calda";
+                    adicionalCalda = (calda === "Chocolate" || calda === "Ninho") ? 1.50 : 0;
+                }
+
                 let valorUnitarioFinal = 18.00 + adicionalCalda;
-                
                 const ehReserva = (b.quantidade || 0) <= 0;
-                if(!ehReserva) pEntregaZap += `✅ ${meuCarrinho[i]}x ${b.nome} (Calda: ${calda})\n`;
+                
+                if(!ehReserva) pEntregaZap += `✅ ${meuCarrinho[i]}x ${b.nome}${caldasHabilitadas ? ` (Calda: ${calda})` : ''}\n`;
                 else { 
-                    pReservaZap += `🕒 [RESERVA] ${meuCarrinho[i]}x ${b.nome} (Calda: ${calda})\n`; 
+                    pReservaZap += `🕒 [RESERVA] ${meuCarrinho[i]}x ${b.nome}${caldasHabilitadas ? ` (Calda: ${calda})` : ''}\n`; 
                     statusPedido = "Reserva";
                 }
                 vTotalBase += meuCarrinho[i] * valorUnitarioFinal;
