@@ -194,7 +194,8 @@
     }
 
     async function carregarDados() {
-        const { data } = await _supa.from('estoque').select('*').order('nome');
+        // FILTRO ADICIONADO: Puxa do banco apenas fatias onde 'ocultar' NÃO seja igual a verdadeiro
+        const { data } = await _supa.from('estoque').select('*').not('ocultar', 'is', true).order('nome');
         if (data) { 
             listaBolos = data.sort((a, b) => {
                 const estoqueA = (a.quantidade || 0) > 0;
