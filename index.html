@@ -105,10 +105,7 @@
 <header>
     <h1>Mii Confeitaria</h1>
     <div class="subtitulo">Fatias Premium</div>
-    <span class="preco-tag">R$ 18,00</span>
-    <div style="margin-top: 15px;">
-        <button id="nav-btn" class="btn-nav" onclick="alternarTela()">✨ Ver Bastidores</button>
-    </div>
+    <span class="preco-tag">Fatia: R$ 18,00 | Calda adicional: R$ 1,50</span>
 </header>
 
 <div class="container">
@@ -143,7 +140,6 @@
     let meuCarrinho = {};
     let metodoEscolhido = 'Entrega';
     let pagamentoEscolhido = 'Pix';
-    let telaAtual = 'venda';
     let idRascunho = null;
 
     async function salvarRascunho() {
@@ -155,11 +151,17 @@
         listaBolos.forEach((b, i) => {
             if(meuCarrinho[i] > 0) {
                 let calda = document.getElementById(`calda-${i}`).value;
-                if (calda === "Selecionar Calda" || calda === "Selecionar Calda ( Grátis )" || calda === "Sem calda") calda = "Sem calda";
+                if (calda === "Selecionar Calda" || calda === "Sem calda") calda = "Sem calda";
+                
+                // Calcula adicional da calda se selecionada
+                let precoCalda = (calda === "Chocolate" || calda === "Ninho") ? 1.50 : 0;
+                let precoItemTotal = 18 + precoCalda;
+                
                 const ehReserva = (b.quantidade || 0) <= 0;
-                if(!ehReserva) pEntregaZap += `✅ ${meuCarrinho[i]}x ${b.nome} (${calda})\n`;
-                else pReservaZap += `🕒 [RESERVA] ${meuCarrinho[i]}x ${b.nome} (${calda})\n`;
-                vTotal += meuCarrinho[i] * 18;
+                if(!ehReserva) pEntregaZap += `✅ ${meuCarrinho[i]}x ${b.nome} (Calda: ${calda})\n`;
+                else pReservaZap += `🕒 [RESERVA] ${meuCarrinho[i]}x ${b.nome} (Calda: ${calda})\n`;
+                
+                vTotal += meuCarrinho[i] * precoItemTotal;
             }
         });
 
@@ -181,14 +183,6 @@
         }
     }
 
-    function alternarTela() {
-        const btnNav = document.getElementById('nav-btn');
-        const tVenda = document.getElementById('tela-venda');
-        const tBastidores = document.getElementById('tela-bastidores');
-        if(telaAtual === 'venda') { tVenda.classList.remove('ativa'); tBastidores.classList.add('ativa'); btnNav.innerHTML = "🍰 Voltar para a Loja"; telaAtual = 'bastidores'; } 
-        else { tBastidores.classList.remove('ativa'); tVenda.classList.add('ativa'); btnNav.innerHTML = "✨ Ver Bastidores"; telaAtual = 'venda'; }
-    }
-
     async function carregarDados() {
         const { data } = await _supa.from('estoque').select('*').not('ocultar', 'is', true).order('nome');
         if (data) { 
@@ -197,19 +191,10 @@
                 const estoqueB = (b.quantidade || 0) > 0;
                 if (estoqueA && !estoqueB) return -1;
                 if (!estoqueA && estoqueB) return 1;
-                if (!estoqueA && !estoqueB) {
-                    const infoA = (a.dados_proximidade || '').toLowerCase();
-                    const infoB = (b.dados_proximidade || '').toLowerCase();
-                    const ehEmBreveA = infoA.includes('breve') || infoA === '';
-                    const ehEmBreveB = infoB.includes('breve') || infoB === '';
-                    if (!ehEmBreveA && ehEmBreveB) return -1;
-                    if (ehEmBreveA && !ehEmBreveB) return 1;
-                }
                 return 0;
             }); 
             renderizarVitrine(); 
         }
-        carregarGaleria();
     }
 
     function renderizarVitrine() {
@@ -233,11 +218,12 @@
                     <span id="qtd-${i}" style="font-weight:bold;">${meuCarrinho[i] || 0}</span>
                     <button class="btn-circular" onclick="ajustar(${i},1)">+</button>
                 </div>
+                <!-- Exibição de valores atualizada no menu de seleção das caldas -->
                 <select id="calda-${i}" class="select-calda" onchange="atualizarInterface()">
-                    <option value="Selecionar Calda" disabled selected hidden>Selecionar Calda ( Grátis )</option>
-                    <option value="Sem calda">Sem calda</option>
-                    <option value="Chocolate">Chocolate</option>
-                    <option value="Ninho">Ninho</option>
+                    <option value="Selecionar Calda" disabled selected hidden>Escolha a Calda</option>
+                    <option value="Sem calda">Sem calda (Grátis)</option>
+                    <option value="Chocolate">Chocolate (+ R$ 1,50)</option>
+                    <option value="Ninho">Ninho (+ R$ 1,50)</option>
                 </select>
             </div>`;
         }).join('');
@@ -255,7 +241,6 @@
         document.getElementById('btn-retirar').classList.toggle('ativa', tipo === 'Retirada');
         document.getElementById('campos-endereco').style.display = tipo === 'Entrega' ? 'grid' : 'none';
         document.getElementById('info-retirada').style.display = tipo === 'Retirada' ? 'block' : 'none';
-        document.getElementById('label-taxa').style.display = (tipo === 'Entrega') ? 'block' : 'none';
     }
 
     function setPagamento(tipo) {
@@ -273,14 +258,22 @@
                 
                 let selectCaldaEl = document.getElementById(`calda-${i}`);
                 let caldaSelecionada = selectCaldaEl ? selectCaldaEl.value : "Selecionar Calda";
-                if (caldaSelecionada === "Selecionar Calda" || caldaSelecionada === "Selecionar Calda ( Grátis )") {
-                    caldaSelecionada = "Não selecionada";
-                }
+                if (caldaSelecionada === "Selecionar Calda") caldaSelecionada = "Sem calda";
+
+                // Lógica de precificação individual do item com o opcional cobrado
+                let adicionalCalda = (caldaSelecionada === "Chocolate" || caldaSelecionada === "Ninho") ? 1.50 : 0;
+                let valorUnitarioFinal = 18.00 + adicionalCalda;
+                let valorLinhaTotal = meuCarrinho[i] * valorUnitarioFinal;
 
                 listaHtml += `
                 <div class="item-resumo-linha">
-                    <div class="item-resumo-topo"><span>• ${meuCarrinho[i]}x ${b.nome}</span></div>
-                    <div style="font-size: 0.7rem; color: #888; margin-top: 2px; padding-left: 10px;">Sabor da Calda: <b>${caldaSelecionada}</b></div>
+                    <div class="item-resumo-topo">
+                        <span>• ${meuCarrinho[i]}x ${b.nome}</span>
+                        <span>R$ ${valorLinhaTotal.toFixed(2)}</span>
+                    </div>
+                    <div style="font-size: 0.7rem; color: #888; margin-top: 2px; padding-left: 10px;">
+                        Calda: <b>${caldaSelecionada}</b> ${adicionalCalda > 0 ? '(+R$ 1,50 cada)' : '(Sem custo extra)'}
+                    </div>
                 </div>`;
             }
         });
@@ -292,15 +285,15 @@
 
     function calcularTotalApenas() {
         let totalProd = 0;
-
         listaBolos.forEach((b, i) => {
             if(meuCarrinho[i] > 0) {
-                let valorItem = 18;
-                totalProd += (meuCarrinho[i] * valorItem);
+                let selectCaldaEl = document.getElementById(`calda-${i}`);
+                let caldaSelecionada = selectCaldaEl ? selectCaldaEl.value : "Sem calda";
+                
+                let adicionalCalda = (caldaSelecionada === "Chocolate" || caldaSelecionada === "Ninho") ? 1.50 : 0;
+                totalProd += (meuCarrinho[i] * (18.00 + adicionalCalda));
             }
         });
-
-        // Sempre exibe o valor cheio de 100%
         document.getElementById('modal-total-val').innerHTML = `R$ ${totalProd.toFixed(2)}`;
     }
 
@@ -314,7 +307,6 @@
         if(!temItens) return alert("Selecione pelo menos uma fatia antes de visualizar.");
 
         await salvarRascunho();
-
         document.getElementById('modal-pedido').style.display = 'flex';
     }
 
@@ -328,16 +320,18 @@
         listaBolos.forEach((b, i) => {
             if(meuCarrinho[i] > 0) {
                 let calda = document.getElementById(`calda-${i}`).value;
-                if (calda === "Selecionar Calda" || calda === "Selecionar Calda ( Grátis )" || calda === "Sem calda") calda = "Sem calda";
-                let valorItem = 18;
-                let adicionais = calda;
+                if (calda === "Selecionar Calda" || calda === "Sem calda") calda = "Sem calda";
+                
+                let adicionalCalda = (calda === "Chocolate" || calda === "Ninho") ? 1.50 : 0;
+                let valorUnitarioFinal = 18.00 + adicionalCalda;
+                
                 const ehReserva = (b.quantidade || 0) <= 0;
-                if(!ehReserva) pEntregaZap += `✅ ${meuCarrinho[i]}x ${b.nome} (${adicionais})\n`;
+                if(!ehReserva) pEntregaZap += `✅ ${meuCarrinho[i]}x ${b.nome} (Calda: ${calda})\n`;
                 else { 
-                    pReservaZap += `🕒 [RESERVA] ${meuCarrinho[i]}x ${b.nome} (${adicionais})\n`; 
+                    pReservaZap += `🕒 [RESERVA] ${meuCarrinho[i]}x ${b.nome} (Calda: ${calda})\n`; 
                     statusPedido = "Reserva";
                 }
-                vTotalBase += meuCarrinho[i] * valorItem;
+                vTotalBase += meuCarrinho[i] * valorUnitarioFinal;
             }
         });
 
@@ -349,23 +343,10 @@
             await _supa.from('pedidos').insert([{ nome, telefone: zap, itens: pEntregaZap + pReservaZap, valor_total: vTotalBase, tipo_entrega: metodoEscolhido, endereco: address, status: statusPedido, metodo_pagamento: pagamentoEscolhido }]);
         }
         
-        let msg = `*NOVO PEDIDO - MII CONFEITARIA*\n\n*Cliente:* ${nome}\n*Pedido:* \n${pEntregaZap}${pReservaZap}\n*Total:* R$ ${vTotalBase.toFixed(2)}\n*Entrega:* ${metodoEscolhido}`;
+        let msg = `*NOVO PEDIDO - MII CONFEITARIA*\n\n*Cliente:* ${nome}\n*Pedido:* \n${pEntregaZap}${pReservaZap}\n*Total Final:* R$ ${vTotalBase.toFixed(2)}\n*Entrega:* ${metodoEscolhido}`;
         window.open(`https://wa.me/5535991441589?text=${encodeURIComponent(msg)}`, '_blank');
     }
 
-    function carregarGaleria() {
-        const geleria = document.getElementById('galeria-bastidores');
-        let html = "";
-        for(let i=1; i<=30; i++) {
-            const nomeFoto = `Bastidor${i}.jpg`;
-            const urlImg = RAW_URL + nomeFoto;
-            html += `<div class="item-bastidor" id="box-b-${i}" onclick="abrirZoom('${urlImg}')"><img src="${urlImg}" onload="document.getElementById('box-b-${i}').style.display='block'" onerror="this.parentElement.remove()"></div>`;
-        }
-        geleria.innerHTML = html;
-    }
-
-    function abrirZoom(url) { document.getElementById('render-zoom').innerHTML = `<img src="${url}">`; document.getElementById('modal-zoom').style.display = 'flex'; }
-    function fecharZoom() { document.getElementById('modal-zoom').style.display = 'none'; }
     window.onload = carregarDados;
 </script>
 </body>
