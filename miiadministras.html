@@ -57,6 +57,7 @@
         .btn-mini-restaurar-res { background: var(--laranja); }
         .btn-mini-apagar-status { background: var(--azul); }
         .btn-mini-salvar-valor { background: var(--laranja); }
+        .btn-mini-salvar-data { background: var(--azul); }
         
         .btn-zap-small { text-decoration: none; background: #25d366; color: white; padding: 5px 12px; border-radius: 4px; font-size: 0.65rem; font-weight: bold; text-transform: uppercase; }
 
@@ -169,29 +170,37 @@
         carregarTudo();
     };
 
-    window.salvarDadosCobranca = async function(id) {
+    // FUNÇÃO 1: Salva INDEPENDENTE apenas o valor numérico total do pedido
+    window.salvarApenasValor = async function(id) {
         const inputValor = document.getElementById(`val-${id}`);
-        const inputData = document.getElementById(`dat-${id}`);
-        
-        if (inputValor && inputData) {
+        if (inputValor) {
             let valorTexto = inputValor.value.replace(',', '.');
-            const dataCombinada = inputData.value;
-            
             const valorNumerico = parseFloat(valorTexto);
             if (!isNaN(valorNumerico)) {
-                const { error } = await _supa.from('pedidos').update({ 
-                    valor_total: valorNumerico,
-                    observacoes: dataCombinada 
-                }).eq('id', id);
-                
+                const { error } = await _supa.from('pedidos').update({ valor_total: valorNumerico }).eq('id', id);
                 if (error) {
-                    alert("Erro do banco de dados: " + error.message);
+                    alert("Erro ao salvar valor: " + error.message);
                 } else {
-                    alert("Dados salvos com sucesso!");
+                    alert("Valor atualizado!");
                     await carregarTudo();
                 }
             } else {
-                alert("Por favor, digite um valor numérico válido.");
+                alert("Digite um valor válido.");
+            }
+        }
+    };
+
+    // FUNÇÃO 2: Salva INDEPENDENTE apenas a data combinada na NOVA coluna criada no banco
+    window.salvarApenasData = async function(id) {
+        const inputData = document.getElementById(`dat-${id}`);
+        if (inputData) {
+            const dataCombinada = inputData.value;
+            const { error } = await _supa.from('pedidos').update({ data_pagamento: dataCombinada }).eq('id', id);
+            if (error) {
+                alert("Erro ao salvar data (Certifique-se de ter criado a coluna data_pagamento): " + error.message);
+            } else {
+                alert("Data combinada salva!");
+                await carregarTudo();
             }
         }
     };
@@ -221,13 +230,13 @@
 
     document.getElementById('btn-sim-pagador').addEventListener('click', async function() {
         if (!pedidoSelecionadoId) return;
-        await _supa.from('pedidos').update({ status: 'Finalizado - Bom Pagador', observacoes: '' }).eq('id', pedidoSelecionadoId);
+        await _supa.from('pedidos').update({ status: 'Finalizado - Bom Pagador' }).eq('id', pedidoSelecionadoId);
         fecharJanelaPergunta();
     });
 
     document.getElementById('btn-nao-pagador').addEventListener('click', async function() {
         if (!pedidoSelecionadoId) return;
-        await _supa.from('pedidos').update({ status: 'Finalizado - Mau Pagador', observacoes: '' }).eq('id', pedidoSelecionadoId);
+        await _supa.from('pedidos').update({ status: 'Finalizado - Mau Pagador' }).eq('id', pedidoSelecionadoId);
         fecharJanelaPergunta();
     });
 
@@ -343,11 +352,17 @@
         let tagDataFixa = '';
         
         if (statusReal === 'A Pagar') {
-            const dataSalva = p.observacoes || '';
-            if (dataSalva && dataSalva !== 'Bom Pagador' && dataSalva !== 'Mau Pagador') {
+            // Puxa o dado direto da nova coluna dedicada 'data_pagamento'
+            const dataSalva = p.data_pagamento || '';
+            if (dataSalva) {
                 tagDataFixa = `<div class="tag-data-combinada">📅 Paga dia: ${dataSalva}</div>`;
             }
-            exibicaoValor = `Total: R$ <input type="text" id="val-${p.id}" class="input-valor-edicao" value="${Number(p.valor_total).toFixed(2)}"> | Alterar Dia: <input type="text" id="dat-${p.id}" class="input-data-combinada" placeholder="Ex: 10/11" value="${dataSalva}"> <button class="btn-mini btn-mini-salvar-valor" onclick="salvarDadosCobranca('${p.id}')" style="padding: 2px 6px; font-size: 0.55rem; vertical-align: middle;">💾</button>`;
+            // Interface com botões individuais para salvar cada campo separadamente
+            exibicaoValor = `
+                <div style="margin-top: 5px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    <span>Total: R$ <input type="text" id="val-${p.id}" class="input-valor-edicao" value="${Number(p.valor_total).toFixed(2)}"> <button class="btn-mini btn-mini-salvar-valor" onclick="salvarApenasValor('${p.id}')" title="Salvar Valor">💾</button></span>
+                    <span>| Dia: <input type="text" id="dat-${p.id}" class="input-data-combinada" placeholder="Ex: 10/11" value="${dataSalva}"> <button class="btn-mini btn-mini-salvar-data" onclick="salvarApenasData('${p.id}')" title="Salvar Data">💾</button></span>
+                </div>`;
         }
 
         return `<div class="card-pedido ${ehReserva ? 'is-reserva' : ''} ${ehDesistencia ? 'is-desistencia' : ''} ${classeFinalizado} ${classeRascunho} ${classeApagar}">
@@ -370,7 +385,6 @@
         if(btn) btn.classList.add('active');
     };
 
-    // Estrutura de renderização clássica e limpa do Estoque
     function renderizarEstoque(e) {
         document.getElementById('corpo-estoque').innerHTML = e.map(i => `
             <tr class="linha-est" data-id="${i.id}">
