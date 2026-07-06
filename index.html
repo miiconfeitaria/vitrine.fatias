@@ -153,7 +153,6 @@
                 let calda = document.getElementById(`calda-${i}`).value;
                 if (calda === "Selecionar Calda" || calda === "Sem calda") calda = "Sem calda";
                 
-                // Calcula adicional da calda se selecionada
                 let precoCalda = (calda === "Chocolate" || calda === "Ninho") ? 1.50 : 0;
                 let precoItemTotal = 18 + precoCalda;
                 
@@ -218,10 +217,9 @@
                     <span id="qtd-${i}" style="font-weight:bold;">${meuCarrinho[i] || 0}</span>
                     <button class="btn-circular" onclick="ajustar(${i},1)">+</button>
                 </div>
-                <!-- Exibição de valores atualizada no menu de seleção das caldas -->
                 <select id="calda-${i}" class="select-calda" onchange="atualizarInterface()">
                     <option value="Selecionar Calda" disabled selected hidden>Escolha a Calda</option>
-                    <option value="Sem calda">Sem calda (Grátis)</option>
+                    <option value="Sem calda">Sem calda</option>
                     <option value="Chocolate">Chocolate (+ R$ 1,50)</option>
                     <option value="Ninho">Ninho (+ R$ 1,50)</option>
                 </select>
@@ -260,7 +258,6 @@
                 let caldaSelecionada = selectCaldaEl ? selectCaldaEl.value : "Selecionar Calda";
                 if (caldaSelecionada === "Selecionar Calda") caldaSelecionada = "Sem calda";
 
-                // Lógica de precificação individual do item com o opcional cobrado
                 let adicionalCalda = (caldaSelecionada === "Chocolate" || caldaSelecionada === "Ninho") ? 1.50 : 0;
                 let valorUnitarioFinal = 18.00 + adicionalCalda;
                 let valorLinhaTotal = meuCarrinho[i] * valorUnitarioFinal;
@@ -312,7 +309,7 @@
 
     function fecharPedido() { document.getElementById('modal-pedido').style.display = 'none'; }
 
-    async function gerarWhatsApp() {
+    async function generarWhatsApp() {
         const nome = document.getElementById('nome-cliente').value;
         const zap = document.getElementById('whatsapp-input').value;
         
