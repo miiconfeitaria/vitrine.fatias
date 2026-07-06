@@ -30,10 +30,6 @@
         .controles { display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 10px; }
         .btn-circular { background: var(--rosa-botao); color: white; border: none; border-radius: 50%; width: 28px; height: 28px; cursor: pointer; font-weight: bold; }
         .select-calda { width: 85%; padding: 6px; border-radius: 8px; border: 1px solid #eee; font-size: 0.7rem; color: #666; background: #fafafa; margin-bottom: 6px; }
-        .grid-bastidores { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 15px; }
-        .item-bastidor { background: #eee; border-radius: 15px; overflow: hidden; height: 300px; border: 1px solid #ddd; cursor: pointer; display: none; }
-        .item-bastidor img { width: 100%; height: 100%; object-fit: cover; transition: 0.3s; }
-        .item-bastidor:hover img { transform: scale(1.05); }
         .checkout-box { background: white; border-radius: 15px; padding: 25px; max-width: 700px; margin: 20px auto; box-shadow: 0 5px 20px rgba(0,0,0,0.05); }
         .resumo-lista { font-size: 0.85rem; margin-bottom: 20px; border-left: 3px solid var(--rosa-topo); padding-left: 15px; color: #666; text-align: left; }
         .item-resumo-linha { border-bottom: 1px dashed #eee; padding: 10px 0; margin-bottom: 10px; }
@@ -70,7 +66,6 @@
         <span class="close-pedido" onclick="fecharPedido()">&times;</span>
         <h3 style="text-align: center; text-transform: uppercase; font-size: 1.1rem; margin-top: 10px;">Visualização do Pedido</h3>
         
-        <!-- O Resumo da compra e os valores aparecem unicamente nesta janela flutuante -->
         <div id="modal-resumo-lista" class="resumo-lista"></div>
 
         <div style="display: flex; gap: 10px; margin-bottom: 12px;">
@@ -144,6 +139,7 @@
     let pagamentoEscolhido = 'Pix';
     let telaAtual = 'venda';
     let idRascunho = null;
+    let caldasHabilitadas = true; // Controla se o seletor de caldas deve ser exibido
 
     async function salvarRascunho() {
         const nome = document.getElementById('nome-cliente').value;
@@ -153,14 +149,18 @@
         let pEntregaZap = "", pReservaZap = "", vTotal = 0;
         listaBolos.forEach((b, i) => {
             if(meuCarrinho[i] > 0) {
-                let calda = document.getElementById(`calda-${i}`).value;
-                if (calda === "Selecionar Calda" || calda === "Selecionar Calda ( Grátis )" || calda === "Sem calda") calda = "Sem calda";
+                let calda = "Sem calda";
+                if (caldasHabilitadas) {
+                    const elCalda = document.getElementById(`calda-${i}`);
+                    calda = elCalda ? elCalda.value : "Sem calda";
+                    if (calda === "Selecionar Calda" || calda === "Selecionar Calda ( Grátis )" || calda === "Sem calda") calda = "Sem calda";
+                }
                 
-                let adicionalCalda = (calda === "Chocolate" || calda === "Ninho") ? 1.50 : 0;
+                let adicionalCalda = (caldasHabilitadas && (calda === "Chocolate" || calda === "Ninho")) ? 1.50 : 0;
                 const ehReserva = (b.quantidade || 0) <= 0;
                 
-                if(!ehReserva) pEntregaZap += `✅ ${meuCarrinho[i]}x ${b.nome} (${calda})\n`;
-                else pReservaZap += `🕒 [RESERVA] ${meuCarrinho[i]}x ${b.nome} (${calda})\n`;
+                if(!ehReserva) pEntregaZap += `✅ ${meuCarrinho[i]}x ${b.nome}${caldasHabilitadas ? ` (${calda})` : ''}\n`;
+                else pReservaZap += `🕒 [RESERVA] ${meuCarrinho[i]}x ${b.nome}${caldasHabilitadas ? ` (${calda})` : ''}\n`;
                 
                 vTotal += meuCarrinho[i] * (18 + adicionalCalda);
             }
@@ -187,7 +187,12 @@
     async function carregarDados() {
         const { data } = await _supa.from('estoque').select('*').order('nome');
         if (data) { 
-            listaBolos = data.filter(item => item.ocultar !== true).sort((a, b) => {
+            // 1. Verifica se o item de controle de calda está oculto no banco
+            const configuracaoCalda = data.find(item => item.nome === "Adicional de Calda");
+            caldasHabilitadas = !(configuracaoCalda && configuracaoCalda.ocultar === true);
+
+            // 2. Filtra a lista removendo o controle de calda e os bolos ocultos para exibir na vitrine
+            listaBolos = data.filter(item => item.nome !== "Adicional de Calda" && item.ocultar !== true).sort((a, b) => {
                 const estoqueA = (a.quantidade || 0) > 0;
                 const estoqueB = (b.quantidade || 0) > 0;
                 if (estoqueA && !estoqueB) return -1;
@@ -214,6 +219,16 @@
             const urlFoto = b.imagem_nome ? RAW_URL + b.imagem_nome : 'https://via.placeholder.com/300x300?text=Mii+Confeitaria';
             const infoTexto = b.dados_proximidade || 'Em breve';
             const ehEmBreve = !temEstoque && (infoTexto.toLowerCase().includes('breve') || infoTexto === '');
+            
+            // Renderiza o select apenas se as caldas estiverem marcadas como "Exibir na Loja"
+            const selectCaldaHtml = caldasHabilitadas ? `
+                <select id="calda-${i}" class="select-calda" onchange="calcularTotalApenas()">
+                    <option value="Selecionar Calda" disabled selected hidden>Selecionar Calda ( Grátis )</option>
+                    <option value="Sem calda">Sem calda</option>
+                    <option value="Chocolate">Chocolate</option>
+                    <option value="Ninho">Ninho</option>
+                </select>` : '';
+
             return `
             <div class="card-bolo">
                 <div class="img-container">
@@ -228,12 +243,7 @@
                     <span id="qtd-${i}" style="font-weight:bold;">${meuCarrinho[i] || 0}</span>
                     <button class="btn-circular" onclick="ajustar(${i},1)">+</button>
                 </div>
-                <select id="calda-${i}" class="select-calda" onchange="calcularTotalApenas()">
-                    <option value="Selecionar Calda" disabled selected hidden>Selecionar Calda ( Grátis )</option>
-                    <option value="Sem calda">Sem calda</option>
-                    <option value="Chocolate">Chocolate</option>
-                    <option value="Ninho">Ninho</option>
-                </select>
+                ${selectCaldaHtml}
             </div>`;
         }).join('');
     }
@@ -264,13 +274,18 @@
         let listaHtml = "";
         listaBolos.forEach((b, i) => {
             if(meuCarrinho[i] > 0) {
-                let selectCaldaEl = document.getElementById(`calda-${i}`);
-                let caldaSelecionada = selectCaldaEl ? selectCaldaEl.value : "Selecionar Calda";
-                if (caldaSelecionada === "Selecionar Calda" || caldaSelecionada === "Selecionar Calda ( Grátis )") {
-                    caldaSelecionada = "Não selecionada";
+                let caldaSelecionada = "Sem calda";
+                let adicionalCalda = 0;
+
+                if (caldasHabilitadas) {
+                    let selectCaldaEl = document.getElementById(`calda-${i}`);
+                    caldaSelecionada = selectCaldaEl ? selectCaldaEl.value : "Selecionar Calda";
+                    if (caldaSelecionada === "Selecionar Calda" || caldaSelecionada === "Selecionar Calda ( Grátis )") {
+                        caldaSelecionada = "Não selecionada";
+                    }
+                    adicionalCalda = (caldaSelecionada === "Chocolate" || caldaSelecionada === "Ninho") ? 1.50 : 0;
                 }
 
-                let adicionalCalda = (caldaSelecionada === "Chocolate" || caldaSelecionada === "Ninho") ? 1.50 : 0;
                 let precoFinalLinha = meuCarrinho[i] * (18 + adicionalCalda);
 
                 listaHtml += `
@@ -279,9 +294,10 @@
                         <span>• ${meuCarrinho[i]}x ${b.nome}</span>
                         <span>R$ ${precoFinalLinha.toFixed(2)}</span>
                     </div>
+                    ${caldasHabilitadas ? `
                     <div style="font-size: 0.7rem; color: #888; margin-top: 2px; padding-left: 10px;">
                         Sabor da Calda: <b>${caldaSelecionada}</b> ${adicionalCalda > 0 ? '(+R$ 1,50)' : ''}
-                    </div>
+                    </div>` : ''}
                 </div>`;
             }
         });
@@ -292,10 +308,12 @@
         let totalProd = 0;
         listaBolos.forEach((b, i) => {
             if(meuCarrinho[i] > 0) {
-                let selectCaldaEl = document.getElementById(`calda-${i}`);
-                let caldaSelecionada = selectCaldaEl ? selectCaldaEl.value : "Sem calda";
-                let adicionalCalda = (caldaSelecionada === "Chocolate" || caldaSelecionada === "Ninho") ? 1.50 : 0;
-                
+                let adicionalCalda = 0;
+                if (caldasHabilitadas) {
+                    let selectCaldaEl = document.getElementById(`calda-${i}`);
+                    let caldaSelecionada = selectCaldaEl ? selectCaldaEl.value : "Sem calda";
+                    adicionalCalda = (caldaSelecionada === "Chocolate" || caldaSelecionada === "Ninho") ? 1.50 : 0;
+                }
                 totalProd += (meuCarrinho[i] * (18 + adicionalCalda));
             }
         });
@@ -311,11 +329,9 @@
         listaBolos.forEach((_, i) => { if(meuCarrinho[i] > 0) temItens = true; });
         if(!temItens) return alert("Selecione pelo menos uma fatia antes de visualizar.");
 
-        // Gera e monta o resumo visual e financeiro apenas na abertura da janela
         montarResumoTexto();
         calcularTotalApenas();
 
-        // Registra o cliente imediatamente na aba de Carrinhos Abandonados do Admin
         await salvarRascunho();
         
         document.getElementById('modal-pedido').style.display = 'flex';
@@ -330,15 +346,19 @@
         let pEntregaZap = "", pReservaZap = "", vTotalBase = 0, statusPedido = "Novo";
         listaBolos.forEach((b, i) => {
             if(meuCarrinho[i] > 0) {
-                let calda = document.getElementById(`calda-${i}`).value;
-                if (calda === "Selecionar Calda" || calda === "Selecionar Calda ( Grátis )" || calda === "Sem calda") calda = "Sem calda";
+                let calda = "Sem calda";
+                let adicionalCalda = 0;
+
+                if (caldasHabilitadas) {
+                    calda = document.getElementById(`calda-${i}`).value;
+                    if (calda === "Selecionar Calda" || calda === "Selecionar Calda ( Grátis )" || calda === "Sem calda") calda = "Sem calda";
+                    adicionalCalda = (calda === "Chocolate" || calda === "Ninho") ? 1.50 : 0;
+                }
                 
-                let adicionalCalda = (calda === "Chocolate" || calda === "Ninho") ? 1.50 : 0;
                 const ehReserva = (b.quantidade || 0) <= 0;
-                
-                if(!ehReserva) pEntregaZap += `✅ ${meuCarrinho[i]}x ${b.nome} (${calda})\n`;
+                if(!ehReserva) pEntregaZap += `✅ ${meuCarrinho[i]}x ${b.nome}${caldasHabilitadas ? ` (${calda})` : ''}\n`;
                 else { 
-                    pReservaZap += `🕒 [RESERVA] ${meuCarrinho[i]}x ${b.nome} (${calda})\n`; 
+                    pReservaZap += `🕒 [RESERVA] ${meuCarrinho[i]}x ${b.nome}${caldasHabilitadas ? ` (${calda})` : ''}\n`; 
                     statusPedido = "Reserva";
                 }
                 vTotalBase += meuCarrinho[i] * (18 + adicionalCalda);
@@ -347,7 +367,6 @@
 
         const address = metodoEscolhido === 'Entrega' ? `${document.getElementById('rua-numero').value}, ${document.getElementById('bairro').value}` : 'Retirada';
         
-        // Atualiza o rascunho de abandonado para o status final real do pedido
         if(idRascunho) {
             await _supa.from('pedidos').update({ nome, telefone: zap, itens: pEntregaZap + pReservaZap, valor_total: vTotalBase, tipo_entrega: metodoEscolhido, endereco: address, status: statusPedido, metodo_pagamento: pagamentoEscolhido }).eq('id', idRascunho);
         } else {
